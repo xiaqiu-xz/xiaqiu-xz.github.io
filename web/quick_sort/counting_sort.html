@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计数排序可视化</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1e293b 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .title {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #00d4ff, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #3b82f6, #60a5fa);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(45deg, #2563eb, #4b8bff);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #64748b, #94a3b8);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(45deg, #475569, #6b7280);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #10b981, #34d399);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(45deg, #059669, #10b981);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #f59e0b, #fbbf24);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: linear-gradient(45deg, #d97706, #f59e0b);
+        }
+
+        .btn-retry {
+            background: linear-gradient(45deg, #ec4899, #f472b6);
+            color: white;
+        }
+
+        .btn-retry:hover {
+            background: linear-gradient(45deg, #db2777, #ec4899);
+        }
+
+        .visualization-panel {
+            background: #1e293b;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid #334155;
+        }
+
+        .array-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 0.25rem;
+            margin: 1rem 0;
+            min-height: 200px;
+            padding: 1rem;
+            background: #0f172a;
+            border-radius: 0.5rem;
+            border: 1px solid #1e293b;
+        }
+
+        .count-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 0.25rem;
+            margin: 1rem 0;
+            min-height: 200px;
+            padding: 1rem;
+            background: #0f172a;
+            border-radius: 0.5rem;
+            border: 1px solid #1e293b;
+        }
+
+        .array-element {
+            background: #475569;
+            color: white;
+            padding: 0.5rem 0.25rem;
+            border-radius: 0.25rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-width: 3rem;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .array-element::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .array-element:hover::before {
+            transform: translateX(100%);
+        }
+
+        .array-element.comparing {
+            background: linear-gradient(45deg, #f59e0b, #fbbf24);
+            border-color: #fbbf24;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+
+        .array-element.sorted {
+            background: linear-gradient(45deg, #10b981, #34d399);
+            border-color: #34d399;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .array-element.left-partition {
+            background: linear-gradient(45deg, #8b5cf6, #a78bfa);
+            border-color: #a78bfa;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+        }
+
+        .array-element.right-partition {
+            background: linear-gradient(45deg, #ec4899, #f472b6);
+            border-color: #f472b6;
+            box-shadow: 0 0 10px rgba(236, 72, 153, 0.3);
+        }
+
+        .status-panel {
+            background: #1e293b;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #00d4ff;
+        }
+
+        .status-text {
+            color: #cbd5e1;
+            line-height: 1.5;
+            flex: 1;
+        }
+
+        .status-icon {
+            font-size: 1.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: #1e293b;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid #334155;
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            border-color: #475569;
+            transform: translateY(-2px);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+
+        .legend-color {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 0.25rem;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .legend-color.comparing { background: #f59e0b; }
+        .legend-color.sorted { background: #10b981; }
+        .legend-color.left { background: #8b5cf6; }
+        .legend-color.right { background: #ec4899; }
+
+        .complexity-panel {
+            background: #1e293b;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            border: 1px solid #334155;
+        }
+
+        .complexity-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 1rem;
+        }
+
+        .complexity-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .complexity-item {
+            background: #0f172a;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            border: 1px solid #1e293b;
+        }
+
+        .complexity-item h4 {
+            color: #fbbf24;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .complexity-item p {
+            color: #cbd5e1;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .complexity-item strong {
+            color: #ffffff;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .title {
+                font-size: 2rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .array-element {
+                min-width: 2.5rem;
+                font-size: 0.8rem;
+            }
+
+            .legend {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .stat-value {
+                font-size: 1.5rem;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .pulsing {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">计数排序可视化</h1>
+            <p class="subtitle">观察计数数组构建和输出排序结果的过程</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="generateRandomArray()">生成随机数组</button>
+            <button class="btn btn-success" onclick="startCountingSort()">开始排序</button>
+            <button class="btn btn-secondary" onclick="resetArray()">重置数组</button>
+            <button class="btn btn-warning" onclick="stepByStep()">单步执行</button>
+            <button class="btn btn-retry" onclick="retrySort()" style="display: none;" id="retryBtn">重试排序</button>
+        </div>
+
+        <div class="visualization-panel">
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color comparing"></div>
+                    <span>比较中</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color left"></div>
+                    <span>输入元素</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color right"></div>
+                    <span>计数元素</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color sorted"></div>
+                    <span>已排序</span>
+                </div>
+            </div>
+
+            <div>
+                <h3 style="color: #00d4ff; margin-bottom: 1rem;">输入数组</h3>
+                <div class="array-container" id="arrayContainer"></div>
+            </div>
+            <div>
+                <h3 style="color: #00d4ff; margin-bottom: 1rem;">计数数组</h3>
+                <div class="count-container" id="countContainer"></div>
+            </div>
+        </div>
+
+        <div class="status-panel">
+            <span class="status-icon">ℹ️</span>
+            <div>
+                <div class="status-title">算法状态</div>
+                <div class="status-text" id="statusText">点击“生成随机数组”开始，然后点击“开始排序”观看排序过程</div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="comparisons">0</div>
+                <div class="stat-label">比较次数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="writes">0</div>
+                <div class="stat-label">写入次数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="arraySize">0</div>
+                <div class="stat-label">数组大小</div>
+            </div>
+        </div>
+
+        <div class="complexity-panel">
+            <div class="complexity-title">算法复杂度分析</div>
+            <div class="complexity-grid">
+                <div class="complexity-item">
+                    <h4>时间复杂度</h4>
+                    <p><strong>平均情况:</strong> O(n + k)</p>
+                    <p><strong>最坏情况:</strong> O(n + k)</p>
+                    <p><strong>最好情况:</strong> O(n + k)</p>
+                </div>
+                <div class="complexity-item">
+                    <h4>空间复杂度</h4>
+                    <p><strong>辅助空间:</strong> O(k)</p>
+                    <p><strong>原地排序:</strong> 否</p>
+                    <p><strong>稳定性:</strong> 稳定</p>
+                </div>
+                <div class="complexity-item">
+                    <h4>算法特点</h4>
+                    <p>• 基于计数非比较排序</p>
+                    <p>• 适合值范围有限的整数</p>
+                    <p>• 高效且稳定</p>
+                    <p>• 需要额外空间 O(k)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let array = [];
+        let initialArray = [];
+        let outputArray = [];
+        let countArray = [];
+        let isAnimating = false;
+        let comparisons = 0;
+        let writes = 0;
+        let animationSpeed = 600;
+        const maxValue = 100; // 假设最大值为 100
+
+        function generateRandomArray() {
+            if (isAnimating) return;
+            
+            const size = Math.floor(Math.random() * 8) + 8;
+            array = Array.from({ length: size }, () => Math.floor(Math.random() * maxValue) + 1);
+            initialArray = [...array];
+            outputArray = new Array(array.length).fill(0);
+            resetStats();
+            renderArrays();
+            updateStatus("新的随机数组已生成，准备开始排序", "🎲");
+            document.getElementById('retryBtn').style.display = 'none';
+        }
+
+        function resetArray() {
+            if (isAnimating) return;
+            
+            array = [64, 34, 25, 12, 22, 11, 90, 5, 77, 30];
+            initialArray = [...array];
+            outputArray = new Array(array.length).fill(0);
+            resetStats();
+            renderArrays();
+            updateStatus("数组已重置为默认数据", "🔄");
+            document.getElementById('retryBtn').style.display = 'none';
+        }
+
+        function retrySort() {
+            if (isAnimating) return;
+            
+            array = [...initialArray];
+            outputArray = new Array(array.length).fill(0);
+            resetStats();
+            renderArrays();
+            updateStatus("已恢复初始数组，准备重新排序", "🔄");
+            document.getElementById('retryBtn').style.display = 'none';
+            startCountingSort();
+        }
+
+        function resetStats() {
+            comparisons = 0;
+            writes = 0;
+            updateStats();
+        }
+
+        function updateStats() {
+            document.getElementById('comparisons').textContent = comparisons;
+            document.getElementById('writes').textContent = writes;
+            document.getElementById('arraySize').textContent = array.length;
+        }
+
+        function renderArrays() {
+            // 渲染输入数组
+            const arrayContainer = document.getElementById('arrayContainer');
+            arrayContainer.innerHTML = '';
+            
+            if (array.length === 0) return;
+            
+            const maxArrayValue = Math.max(...array, maxValue);
+            const minArrayValue = Math.min(...array, 1);
+            const arrayRange = maxArrayValue - minArrayValue || 1;
+            
+            array.forEach((value, index) => {
+                const element = document.createElement('div');
+                element.className = 'array-element';
+                element.textContent = value;
+                element.id = `array-element-${index}`;
+                
+                const normalizedValue = (value - minArrayValue) / arrayRange;
+                const height = 150 + normalizedValue * 100;
+                element.style.height = `${height}px`;
+                element.style.lineHeight = `${height}px`;
+                
+                arrayContainer.appendChild(element);
+            });
+
+            // 渲染计数数组（仅显示前 10 个元素以适应空间）
+            const countContainer = document.getElementById('countContainer');
+            countContainer.innerHTML = '';
+            
+            const maxCount = Math.max(...countArray, 10) || 10;
+            const countRange = maxCount || 1;
+            
+            for (let i = 0; i < Math.min(10, maxValue + 1); i++) {
+                const element = document.createElement('div');
+                element.className = 'array-element';
+                element.textContent = countArray[i] || 0;
+                element.id = `count-element-${i}`;
+                
+                const normalizedCount = ((countArray[i] || 0) / countRange) * 10;
+                const height = 50 + normalizedCount * 20;
+                element.style.height = `${height}px`;
+                element.style.lineHeight = `${height}px`;
+                
+                countContainer.appendChild(element);
+            }
+        }
+
+        function highlightElement(type, index, className) {
+            const element = document.getElementById(`${type}-element-${index}`);
+            if (element) {
+                element.className = `array-element ${className}`;
+            }
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.array-element').forEach(el => {
+                el.className = 'array-element';
+            });
+        }
+
+        function updateStatus(message, icon = "ℹ️") {
+            document.getElementById('statusText').textContent = message;
+            document.querySelector('.status-icon').textContent = icon;
+        }
+
+        async function startCountingSort() {
+            if (isAnimating || array.length === 0) return;
+            
+            isAnimating = true;
+            resetStats();
+            countArray = new Array(maxValue + 1).fill(0);
+            outputArray = new Array(array.length).fill(0);
+            
+            updateStatus("开始计数排序，初始化计数数组...", "▶️");
+            renderArrays();
+            await sleep(animationSpeed);
+
+            // 计数阶段
+            for (let i = 0; i < array.length; i++) {
+                highlightElement('array', i, 'left-partition');
+                highlightElement('count', array[i], 'right-partition');
+                updateStatus(`统计值 ${array[i]} 的出现次数`, "🔢");
+                countArray[array[i]]++;
+                writes++;
+                updateStats();
+                renderArrays();
+                await sleep(animationSpeed);
+                clearHighlights();
+            }
+
+            updateStatus("计数完成，开始累加计数数组...", "✅");
+            await sleep(animationSpeed);
+
+            // 累加阶段
+            for (let i = 1; i <= maxValue; i++) {
+                highlightElement('count', i - 1, 'comparing');
+                highlightElement('count', i, 'comparing');
+                updateStatus(`累加计数数组，索引 ${i}`, "🔍");
+                countArray[i] += countArray[i - 1];
+                comparisons++;
+                updateStats();
+                renderArrays();
+                await sleep(animationSpeed);
+                clearHighlights();
+            }
+
+            updateStatus("累加完成，开始构建输出数组...", "✅");
+            await sleep(animationSpeed);
+
+            // 输出阶段
+            for (let i = array.length - 1; i >= 0; i--) {
+                highlightElement('array', i, 'left-partition');
+                const value = array[i];
+                const pos = countArray[value] - 1;
+                countArray[value]--;
+                highlightElement('array', pos, 'right-partition');
+                updateStatus(`将值 ${value} 放入输出数组位置 ${pos}`, "🔄");
+                outputArray[pos] = value;
+                writes++;
+                updateStats();
+                array = [...outputArray];
+                renderArrays();
+                highlightElement('array', pos, 'sorted');
+                await sleep(animationSpeed);
+                clearHighlights();
+            }
+
+            // 标记所有元素为已排序
+            for (let i = 0; i < array.length; i++) {
+                highlightElement('array', i, 'sorted');
+            }
+
+            updateStatus("🎉 排序完成！所有元素已按升序排列", "🎉");
+            document.getElementById('retryBtn').style.display = 'inline-block';
+            isAnimating = false;
+        }
+
+        function stepByStep() {
+            if (isAnimating) return;
+            updateStatus("单步执行模式开发中...", "⚠️");
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        window.onload = function() {
+            resetArray();
+        };
+    </script>
+</body>
+</html>
