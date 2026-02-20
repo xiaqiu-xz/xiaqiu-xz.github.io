@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TDD: MRUList 完整实现</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap');
+
+        :root {
+            --bg: #0d0f14;
+            --surface: #13161e;
+            --border: #1e2330;
+            --red: #e05c5c;
+            --red-dim: #3a1a1a;
+            --green: #4caf7d;
+            --green-dim: #0f2a1a;
+            --amber: #d4a843;
+            --amber-dim: #2a2010;
+            --blue: #5b8fff;
+            --blue-dim: #0f1e40;
+            --text: #c8d0e0;
+            --text-dim: #5a6480;
+            --text-bright: #eef2ff;
+            --mono: 'JetBrains Mono', monospace;
+            --sans: 'Syne', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 2rem 3rem;
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            background: var(--surface);
+        }
+
+        .tdd-cycle {
+            display: flex;
+            gap: 0;
+            align-items: center;
+            font-family: var(--mono);
+            font-size: .75rem;
+            font-weight: 700;
+            letter-spacing: .05em;
+        }
+
+        .tdd-cycle span {
+            padding: .35rem .9rem;
+            border-radius: 2px;
+        }
+
+        .tdd-cycle .r {
+            background: var(--red-dim);
+            color: var(--red);
+        }
+
+        .tdd-cycle .arr {
+            color: var(--text-dim);
+            padding: 0 .3rem;
+        }
+
+        .tdd-cycle .g {
+            background: var(--green-dim);
+            color: var(--green);
+        }
+
+        .tdd-cycle .rf {
+            background: var(--amber-dim);
+            color: var(--amber);
+        }
+
+        h1 {
+            font-family: var(--sans);
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-bright);
+        }
+
+        h1 em {
+            font-style: normal;
+            color: var(--blue);
+        }
+
+        /* ── Nav tabs ── */
+        nav {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
+            padding: 0 3rem;
+            background: var(--surface);
+            overflow-x: auto;
+        }
+
+        nav button {
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: .8rem;
+            font-weight: 600;
+            padding: .9rem 1.4rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color .2s, border-color .2s;
+        }
+
+        nav button:hover {
+            color: var(--text);
+        }
+
+        nav button.active {
+            color: var(--text-bright);
+            border-bottom-color: var(--blue);
+        }
+
+        nav button .badge {
+            display: inline-block;
+            margin-left: .4rem;
+            padding: .1rem .4rem;
+            border-radius: 2px;
+            font-size: .65rem;
+        }
+
+        nav button .r-badge {
+            background: var(--red-dim);
+            color: var(--red);
+        }
+
+        nav button .g-badge {
+            background: var(--green-dim);
+            color: var(--green);
+        }
+
+        nav button .rf-badge {
+            background: var(--amber-dim);
+            color: var(--amber);
+        }
+
+        /* ── Main ── */
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2.5rem 3rem;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        /* ── Step header ── */
+        .step-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .phase-pill {
+            flex-shrink: 0;
+            padding: .4rem 1rem;
+            border-radius: 3px;
+            font-family: var(--mono);
+            font-size: .8rem;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .phase-pill.red {
+            background: var(--red-dim);
+            color: var(--red);
+            border: 1px solid #5a2020;
+        }
+
+        .phase-pill.green {
+            background: var(--green-dim);
+            color: var(--green);
+            border: 1px solid #1a4a2a;
+        }
+
+        .phase-pill.refactor {
+            background: var(--amber-dim);
+            color: var(--amber);
+            border: 1px solid #4a3a10;
+        }
+
+        .phase-pill.final {
+            background: var(--blue-dim);
+            color: var(--blue);
+            border: 1px solid #1a3060;
+        }
+
+        .step-title {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: var(--text-bright);
+            margin-bottom: .3rem;
+        }
+
+        .step-desc {
+            color: var(--text-dim);
+            font-size: .9rem;
+        }
+
+        /* ── Code block ── */
+        .code-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+        }
+
+        .code-label {
+            display: flex;
+            align-items: center;
+            gap: .7rem;
+            padding: .6rem 1.2rem;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--mono);
+            font-size: .72rem;
+            color: var(--text-dim);
+            background: #0f1118;
+        }
+
+        .code-label .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .dot-red {
+            background: #e05c5c;
+        }
+
+        .dot-green {
+            background: #4caf7d;
+        }
+
+        .dot-amber {
+            background: #d4a843;
+        }
+
+        pre {
+            margin: 0;
+            padding: 1.5rem;
+            overflow-x: auto;
+            font-family: var(--mono);
+            font-size: .82rem;
+            line-height: 1.7;
+            tab-size: 4;
+        }
+
+        /* Syntax colors */
+        .kw {
+            color: #7c9eff;
+        }
+
+        .ty {
+            color: #4fc1a6;
+        }
+
+        .fn {
+            color: #dfd077;
+        }
+
+        .str {
+            color: #98c97a;
+        }
+
+        .cm {
+            color: #3e4860;
+            font-style: italic;
+        }
+
+        .cm.hi {
+            color: #546080;
+        }
+
+        .num {
+            color: #f0a070;
+        }
+
+        .macro {
+            color: #d08eff;
+        }
+
+        .op {
+            color: #7c9eff;
+        }
+
+        /* ── Result box ── */
+        .result-box {
+            display: flex;
+            gap: .8rem;
+            align-items: flex-start;
+            padding: 1rem 1.2rem;
+            border-radius: 6px;
+            border: 1px solid;
+            margin: 1rem 0;
+            font-family: var(--mono);
+            font-size: .82rem;
+        }
+
+        .result-box.fail {
+            background: var(--red-dim);
+            border-color: #5a2020;
+            color: #ff9090;
+        }
+
+        .result-box.pass {
+            background: var(--green-dim);
+            border-color: #1a5a2a;
+            color: #80ffb0;
+        }
+
+        .result-box.note {
+            background: var(--blue-dim);
+            border-color: #1a3060;
+            color: #90b8ff;
+        }
+
+        .result-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+            margin-top: .1rem;
+        }
+
+        /* ── Explanation cards ── */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.2rem 1.4rem;
+        }
+
+        .card-title {
+            font-weight: 700;
+            color: var(--text-bright);
+            margin-bottom: .5rem;
+            font-size: .9rem;
+        }
+
+        .card p {
+            font-size: .85rem;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        .card code {
+            font-family: var(--mono);
+            font-size: .78rem;
+            color: var(--amber);
+        }
+
+        /* ── Progress bar ── */
+        .progress {
+            display: flex;
+            gap: .4rem;
+            margin-bottom: 2rem;
+            align-items: center;
+        }
+
+        .progress-seg {
+            height: 4px;
+            flex: 1;
+            border-radius: 2px;
+            background: var(--border);
+            transition: background .3s;
+        }
+
+        .progress-seg.done-red {
+            background: var(--red);
+        }
+
+        .progress-seg.done-green {
+            background: var(--green);
+        }
+
+        .progress-seg.done-amber {
+            background: var(--amber);
+        }
+
+        .progress-seg.done-blue {
+            background: var(--blue);
+        }
+
+        .progress-label {
+            font-family: var(--mono);
+            font-size: .7rem;
+            color: var(--text-dim);
+            flex-shrink: 0;
+        }
+
+        /* ── Bottom nav ── */
+        .step-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .btn {
+            font-family: var(--mono);
+            font-size: .8rem;
+            font-weight: 600;
+            padding: .7rem 1.4rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            background: var(--surface);
+            color: var(--text);
+            transition: all .2s;
+            letter-spacing: .03em;
+        }
+
+        .btn:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        .btn.primary {
+            background: var(--blue-dim);
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        .btn:disabled {
+            opacity: .3;
+            cursor: default;
+        }
+
+        /* ── Inline highlight ── */
+        .hl {
+            background: #1e2a1e;
+            border: 1px solid #2a4a2a;
+            border-radius: 3px;
+            padding: .1rem .4rem;
+            font-family: var(--mono);
+            font-size: .8rem;
+            color: var(--green);
+        }
+
+        .hl.r {
+            background: #2a1a1a;
+            border-color: #4a2020;
+            color: var(--red);
+        }
+
+        .hl.a {
+            background: #2a2010;
+            border-color: #4a3a10;
+            color: var(--amber);
+        }
+
+        /* ── final full code ── */
+        .full-code-label {
+            font-family: var(--mono);
+            font-size: .7rem;
+            color: var(--blue);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-bottom: .5rem;
+        }
+
+        hr.dim {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 1.5rem 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div>
+            <h1>TDD 实现 <em>MRUList</em></h1>
+        </div>
+        <div class="tdd-cycle">
+            <span class="r">Red</span>
+            <span class="arr">→</span>
+            <span class="g">Green</span>
+            <span class="arr">→</span>
+            <span class="rf">Refactor</span>
+            <span class="arr">→ ...</span>
+        </div>
+    </header>
+
+    <nav>
+        <button class="active" onclick="goto(0)">① 初始状态 <span class="badge r-badge">RED</span></button>
+        <button onclick="goto(1)">② 最小实现 <span class="badge g-badge">GREEN</span></button>
+        <button onclick="goto(2)">③ 添加行为 <span class="badge r-badge">RED</span></button>
+        <button onclick="goto(3)">④ 实现 add() <span class="badge g-badge">GREEN</span></button>
+        <button onclick="goto(4)">⑤ 更多测试 <span class="badge r-badge">RED</span></button>
+        <button onclick="goto(5)">⑥ 完整实现 <span class="badge g-badge">GREEN</span></button>
+        <button onclick="goto(6)">⑦ 重构 <span class="badge rf-badge">REFACTOR</span></button>
+        <button onclick="goto(7)">⑧ 完整代码 <span class="badge"
+                style="background:#1a3060;color:#5b8fff">FINAL</span></button>
+    </nav>
+
+    <main>
+
+        <!-- ═══════════════════════════════════════════════════════ STEP 0 -->
+        <div class="step active" id="step-0">
+            <div class="progress">
+                <span class="progress-label">1 / 8</span>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+            </div>
+
+            <div class="step-header">
+                <div class="phase-pill red">🔴 Red</div>
+                <div>
+                    <div class="step-title">写第一个失败的测试：空列表初始状态</div>
+                    <div class="step-desc">先只写测试，此时 MRUList 根本不存在 —— 编译必然失败，这正是 Red 阶段的目标。</div>
+                </div>
+            </div>
+
+            <div class="code-wrap">
+                <div class="code-label">
+                    <div class="dot dot-red"></div>test_mrulist.cpp — 只有测试，没有实现
+                </div>
+                <pre><span class="cm">// ❶ 只引入测试框架，不引入任何实现</span>
+<span class="macro">#include</span> <span class="str">&lt;catch2/catch_test_macros.hpp&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;catch2/catch_session.hpp&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;string&gt;</span>
+
+<span class="cm">// ❷ MRUList 还不存在！这里会编译失败 ✗</span>
+<span class="macro">TEST_CASE</span>(<span class="str">"An MRU list acts like a stack, "</span>
+          <span class="str">"but duplicate entries replace existing ones"</span>)
+{
+    <span class="cm">// Arrange</span>
+    <span class="ty">MRUList</span>&lt;<span class="ty">std::string</span>&gt; list;
+
+    <span class="macro">SECTION</span>(<span class="str">"An empty list has no elements"</span>)
+    {
+        <span class="cm">// Assert — 验证初始状态</span>
+        <span class="macro">REQUIRE</span>( list.empty() );          <span class="cm">// ✗ 编译失败：MRUList 未定义</span>
+        <span class="macro">REQUIRE</span>( list.size() == <span class="num">0</span> );      <span class="cm">// ✗</span>
+    }
+}
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">int</span> argc, <span class="kw">char</span>* argv[]) {
+    <span class="kw">return</span> <span class="ty">Catch</span>::<span class="fn">Session</span>().<span class="fn">run</span>(argc, argv);
+}</pre>
+            </div>
+
+            <div class="result-box fail">
+                <div class="result-icon">✗</div>
+                <div><strong>编译失败（预期）</strong><br>
+                    error: 'MRUList' was not declared in this scope<br>
+                    <br>→ 失败证明测试有效。这正是 Red 阶段的目的。
+                </div>
+            </div>
+
+            <div class="cards">
+                <div class="card">
+                    <div class="card-title">为什么要先失败？</div>
+                    <p>失败说明测试是"活的"——它真的在检验某个尚不存在的行为。如果测试不失败，说明测试根本没有验证任何东西。</p>
+                </div>
+                <div class="card">
+                    <div class="card-title">此阶段我们知道了什么？</div>
+                    <p>我们需要一个 <code>MRUList&lt;T&gt;</code> 模板类，它要有 <code>empty()</code> 和 <code>size()</code> 两个方法。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ STEP 1 -->
+        <div class="step" id="step-1">
+            <div class="progress">
+                <span class="progress-label">2 / 8</span>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+            </div>
+
+            <div class="step-header">
+                <div class="phase-pill green">🟢 Green</div>
+                <div>
+                    <div class="step-title">写最少代码让 SECTION 1 通过</div>
+                    <div class="step-desc">Race to Green —— 不追求完美，只让测试通过。用最小骨架实现 empty() 和 size()。</div>
+                </div>
+            </div>
+
+            <div class="code-wrap">
+                <div class="code-label">
+                    <div class="dot dot-green"></div>MRUList.h — 最小实现（作弊式）
+                </div>
+                <pre><span class="macro">#pragma once</span>
+<span class="macro">#include</span> <span class="str">&lt;cstddef&gt;</span>
+
+<span class="kw">template</span>&lt;<span class="kw">typename</span> <span class="ty">T</span>&gt;
+<span class="kw">class</span> <span class="ty">MRUList</span> {
+<span class="kw">public</span>:
+    <span class="cm">// ✓ empty() 始终返回 true — 只为通过当前测试</span>
+    <span class="kw">bool</span> <span class="fn">empty</span>() <span class="kw">const</span> { <span class="kw">return</span> <span class="kw">true</span>; }
+
+    <span class="cm">// ✓ size() 始终返回 0 — 只为通过当前测试</span>
+    <span class="ty">std::size_t</span> <span class="fn">size</span>() <span class="kw">const</span> { <span class="kw">return</span> <span class="num">0</span>; }
+};</pre>
+            </div>
+
+            <div class="result-box pass">
+                <div class="result-icon">✓</div>
+                <div><strong>SECTION 1 通过</strong><br>
+                    All tests passed (1 assertion in 1 test case)<br>
+                    <br>→ 虽然实现是假的，但测试通过了。Green 阶段完成。
+                </div>
+            </div>
+
+            <div class="result-box note">
+                <div class="result-icon">💡</div>
+                <div><strong>为什么允许"作弊"？</strong><br>
+                    Kent Beck 原则：Make it work → Make it right → Make it fast<br>
+                    现在我们在 "Make it work"。正确性留给重构阶段。</div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ STEP 2 -->
+        <div class="step" id="step-2">
+            <div class="progress">
+                <span class="progress-label">3 / 8</span>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+            </div>
+
+            <div class="step-header">
+                <div class="phase-pill red">🔴 Red</div>
+                <div>
+                    <div class="step-title">加入 SECTION 2：添加元素的测试</div>
+                    <div class="step-desc">新需求 → 新测试 → 必须先失败。add() 方法还不存在。</div>
+                </div>
+            </div>
+
+            <div class="code-wrap">
+                <div class="code-label">
+                    <div class="dot dot-red"></div>test_mrulist.cpp — 加入 SECTION 2
+                </div>
+                <pre><span class="macro">TEST_CASE</span>(<span class="str">"An MRU list acts like a stack, "</span>
+          <span class="str">"but duplicate entries replace existing ones"</span>)
+{
+    <span class="ty">MRUList</span>&lt;<span class="ty">std::string</span>&gt; list;
+
+    <span class="macro">SECTION</span>(<span class="str">"An empty list has no elements"</span>)
+    {
+        <span class="macro">REQUIRE</span>( list.empty() );          <span class="cm">// ✓ 仍然通过</span>
+        <span class="macro">REQUIRE</span>( list.size() == <span class="num">0</span> );      <span class="cm">// ✓ 仍然通过</span>
+    }
+
+    <span class="cm hi">// ══ 新增 SECTION 2 ══</span>
+    <span class="macro">SECTION</span>(<span class="str">"Adding to an empty list increases the size to 1"</span>)
+    {
+        <span class="cm">// Act</span>
+        list.<span class="fn">add</span>(<span class="str">"item1"</span>);              <span class="cm">// ✗ add() 不存在，编译失败</span>
+
+        <span class="cm">// Assert</span>
+        <span class="macro">REQUIRE</span>( list.empty() == <span class="kw">false</span> );
+        <span class="macro">REQUIRE</span>( list.size() == <span class="num">1</span> );
+    }
+}</pre>
+            </div>
+
+            <div class="result-box fail">
+                <div class="result-icon">✗</div>
+                <div><strong>编译失败（预期）</strong><br>
+                    error: 'class MRUList&lt;std::string&gt;' has no member named 'add'<br>
+                    <br>→ 红灯。我们知道下一步该做什么了。
+                </div>
+            </div>
+
+            <div class="cards">
+                <div class="card">
+                    <div class="card-title">Catch2 的 SECTION 执行模型</div>
+                    <p>每个 SECTION 都是独立执行路径。Catch2 会执行 TEST_CASE 两次：第一次只进 SECTION 1，第二次只进 SECTION 2。两次都从头
+                        <code>MRUList list;</code> 开始，状态完全隔离。
+                    </p>
+                </div>
+                <div class="card">
+                    <div class="card-title">新测试告诉我们什么？</div>
+                    <p>我们需要 <code>add(T value)</code> 方法，调用后 <code>empty()</code> 返回
+                        <code>false</code>，<code>size()</code> 返回 <code>1</code>。内部需要真正的存储了。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ STEP 3 -->
+        <div class="step" id="step-3">
+            <div class="progress">
+                <span class="progress-label">4 / 8</span>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+            </div>
+
+            <div class="step-header">
+                <div class="phase-pill green">🟢 Green</div>
+                <div>
+                    <div class="step-title">实现 add()，让 SECTION 2 通过</div>
+                    <div class="step-desc">引入真正的内部存储，让 empty() 和 size() 基于实际数据返回。</div>
+                </div>
+            </div>
+
+            <div class="code-wrap">
+                <div class="code-label">
+                    <div class="dot dot-green"></div>MRUList.h — 引入真正的存储
+                </div>
+                <pre><span class="macro">#pragma once</span>
+<span class="macro">#include</span> <span class="str">&lt;vector&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;cstddef&gt;</span>
+
+<span class="kw">template</span>&lt;<span class="kw">typename</span> <span class="ty">T</span>&gt;
+<span class="kw">class</span> <span class="ty">MRUList</span> {
+<span class="kw">public</span>:
+    <span class="cm">// ✓ 委托给内部 vector</span>
+    <span class="kw">bool</span> <span class="fn">empty</span>() <span class="kw">const</span> { <span class="kw">return</span> items_.empty(); }
+    <span class="ty">std::size_t</span> <span class="fn">size</span>() <span class="kw">const</span> { <span class="kw">return</span> items_.size(); }
+
+    <span class="cm">// ✓ 新增 add()：把元素插到最前面（MRU 语义：最近使用 = 栈顶）</span>
+    <span class="kw">void</span> <span class="fn">add</span>(<span class="ty">T</span> value) {
+        items_.insert(items_.begin(), value);
+    }
+
+<span class="kw">private</span>:
+    <span class="ty">std::vector</span>&lt;<span class="ty">T</span>&gt; items_;    <span class="cm">// 内部存储</span>
+};</pre>
+            </div>
+
+            <div class="result-box pass">
+                <div class="result-icon">✓</div>
+                <div><strong>两个 SECTION 全部通过</strong><br>
+                    All tests passed (4 assertions in 1 test case)<br>
+                    <br>→ 绿灯。两条需求都验证通过了。
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ STEP 4 -->
+        <div class="step" id="step-4">
+            <div class="progress">
+                <span class="progress-label">5 / 8</span>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+            </div>
+
+            <div class="step-header">
+                <div class="phase-pill red">🔴 Red</div>
+                <div>
+                    <div class="step-title">更多测试：MRU 顺序 + 去重行为</div>
+                    <div class="step-desc">MRU 的核心语义：最近添加的排最前；重复元素替换（移到最前），不增加 size。</div>
+                </div>
+            </div>
+
+            <div class="code-wrap">
+                <div class="code-label">
+                    <div class="dot dot-red"></div>test_mrulist.cpp — 完整测试用例
+                </div>
+                <pre><span class="macro">TEST_CASE</span>(<span class="str">"An MRU list acts like a stack, "</span>
+          <span class="str">"but duplicate entries replace existing ones"</span>)
+{
+    <span class="ty">MRUList</span>&lt;<span class="ty">std::string</span>&gt; list;
+
+    <span class="macro">SECTION</span>(<span class="str">"An empty list has no elements"</span>) { <span class="cm">/* ... ✓ */</span> }
+    <span class="macro">SECTION</span>(<span class="str">"Adding to an empty list increases the size to 1"</span>) { <span class="cm">/* ... ✓ */</span> }
+
+    <span class="cm hi">// ══ 新增：MRU 顺序验证 ══</span>
+    <span class="macro">SECTION</span>(<span class="str">"Most recently added item is first"</span>)
+    {
+        list.<span class="fn">add</span>(<span class="str">"item1"</span>);
+        list.<span class="fn">add</span>(<span class="str">"item2"</span>);
+        list.<span class="fn">add</span>(<span class="str">"item3"</span>);
+
+        <span class="macro">REQUIRE</span>( list.<span class="fn">top</span>() == <span class="str">"item3"</span> );  <span class="cm">// ✗ top() 还不存在</span>
+        <span class="macro">REQUIRE</span>( list.<span class="fn">size</span>() == <span class="num">3</span> );
+    }
+
+    <span class="cm hi">// ══ 新增：去重（核心 MRU 语义）══</span>
+    <span class="macro">SECTION</span>(<span class="str">"Adding a duplicate moves it to the front, not increases size"</span>)
+    {
+        list.<span class="fn">add</span>(<span class="str">"item1"</span>);
+        list.<span class="fn">add</span>(<span class="str">"item2"</span>);
+        list.<span class="fn">add</span>(<span class="str">"item1"</span>);    <span class="cm">// 重复！</span>
+
+        <span class="macro">REQUIRE</span>( list.<span class="fn">size</span>() == <span class="num">2</span> );          <span class="cm">// ✗ size 应该是 2 不是 3</span>
+        <span class="macro">REQUIRE</span>( list.<span class="fn">top</span>() == <span class="str">"item1"</span> );    <span class="cm">// ✗ item1 应该移到最前</span>
+    }
+
+    <span class="cm hi">// ══ 新增：索引访问 ══</span>
+    <span class="macro">SECTION</span>(<span class="str">"Elements can be accessed by index"</span>)
+    {
+        list.<span class="fn">add</span>(<span class="str">"a"</span>);
+        list.<span class="fn">add</span>(<span class="str">"b"</span>);
+        list.<span class="fn">add</span>(<span class="str">"c"</span>);
+
+        <span class="macro">REQUIRE</span>( list[<span class="num">0</span>] == <span class="str">"c"</span> );    <span class="cm">// ✗ operator[] 还不存在</span>
+        <span class="macro">REQUIRE</span>( list[<span class="num">1</span>] == <span class="str">"b"</span> );
+        <span class="macro">REQUIRE</span>( list[<span class="num">2</span>] == <span class="str">"a"</span> );
+    }
+}</pre>
+            </div>
+
+            <div class="result-box fail">
+                <div class="result-icon">✗</div>
+                <div><strong>3 个新 SECTION 失败（预期）</strong><br>
+                    error: 'class MRUList' has no member named 'top'<br>
+                    error: no match for 'operator[]'<br>
+                    去重逻辑尚未实现<br>
+                    <br>→ 这些测试精确定义了 MRUList 的行为规范。
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ STEP 5 -->
+        <div class="step" id="step-5">
+            <div class="progress">
+                <span class="progress-label">6 / 8</span>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg"></div>
+                <div class="progress-seg"></div>
+            </div>
+
+            <div class="step-header">
+                <div class="phase-pill green">🟢 Green</div>
+                <div>
+                    <div class="step-title">实现 top()、operator[]、去重逻辑</div>
+                    <div class="step-desc">让所有测试通过。add() 需要先查找并删除重复项，再插入到头部。</div>
+                </div>
+            </div>
+
+            <div class="code-wrap">
+                <div class="code-label">
+                    <div class="dot dot-green"></div>MRUList.h — 完整功能实现
+                </div>
+                <pre><span class="macro">#pragma once</span>
+<span class="macro">#include</span> <span class="str">&lt;vector&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;algorithm&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;cstddef&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;stdexcept&gt;</span>
+
+<span class="kw">template</span>&lt;<span class="kw">typename</span> <span class="ty">T</span>&gt;
+<span class="kw">class</span> <span class="ty">MRUList</span> {
+<span class="kw">public</span>:
+    <span class="cm">// ─── 状态查询 ──────────────────────────────</span>
+    <span class="kw">bool</span>         <span class="fn">empty</span>() <span class="kw">const</span> { <span class="kw">return</span> items_.empty(); }
+    <span class="ty">std::size_t</span>  <span class="fn">size</span>()  <span class="kw">const</span> { <span class="kw">return</span> items_.size(); }
+
+    <span class="cm">// ─── 最近使用项（栈顶）────────────────────</span>
+    <span class="kw">const</span> <span class="ty">T</span>&amp; <span class="fn">top</span>() <span class="kw">const</span> {
+        <span class="kw">if</span> (items_.empty())
+            <span class="kw">throw</span> <span class="ty">std::out_of_range</span>(<span class="str">"MRUList is empty"</span>);
+        <span class="kw">return</span> items_.front();   <span class="cm">// 最近使用 = index 0</span>
+    }
+
+    <span class="cm">// ─── 按位置访问 ────────────────────────────</span>
+    <span class="kw">const</span> <span class="ty">T</span>&amp; <span class="kw">operator</span>[](<span class="ty">std::size_t</span> index) <span class="kw">const</span> {
+        <span class="kw">return</span> items_.at(index);
+    }
+
+    <span class="cm">// ─── 添加（核心 MRU 逻辑）─────────────────</span>
+    <span class="kw">void</span> <span class="fn">add</span>(<span class="ty">T</span> value) {
+        <span class="cm">// ① 先查找重复项</span>
+        <span class="kw">auto</span> it = <span class="ty">std</span>::<span class="fn">find</span>(items_.begin(), items_.end(), value);
+
+        <span class="cm">// ② 如果存在，先删除（不增加 size）</span>
+        <span class="kw">if</span> (it != items_.end()) {
+            items_.erase(it);
+        }
+
+        <span class="cm">// ③ 插入到最前面（最近使用 = 栈顶）</span>
+        items_.insert(items_.begin(), <span class="ty">std</span>::<span class="fn">move</span>(value));
+    }
+
+<span class="kw">private</span>:
+    <span class="ty">std::vector</span>&lt;<span class="ty">T</span>&gt; items_;
+};</pre>
+            </div>
+
+            <div class="result-box pass">
+                <div class="result-icon">✓</div>
+                <div><strong>全部测试通过</strong><br>
+                    All tests passed (11 assertions in 1 test case)<br>
+                    <br>→ 绿灯。所有行为规范都满足了。
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ STEP 6 -->
+        <div class="step" id="step-6">
+            <div class="progress">
+                <span class="progress-label">7 / 8</span>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-amber"></div>
+                <div class="progress-seg"></div>
+            </div>
+
+            <div class="step-header">
+                <div class="phase-pill refactor">🟡 Refactor</div>
+                <div>
+                    <div class="step-title">重构：提升性能与清晰度</div>
+                    <div class="step-desc">行为不变，结构更好。用 std::list 替换 vector 以优化头部插入；抽取辅助方法；加强接口。</div>
+                </div>
+            </div>
+
+            <div class="code-wrap">
+                <div class="code-label">
+                    <div class="dot dot-amber"></div>MRUList.h — 重构后（行为完全一致）
+                </div>
+                <pre><span class="macro">#pragma once</span>
+<span class="macro">#include</span> <span class="str">&lt;list&gt;</span>        <span class="cm">// 替换 vector：头部插入 O(1)</span>
+<span class="macro">#include</span> <span class="str">&lt;algorithm&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;cstddef&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;stdexcept&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;iterator&gt;</span>
+
+<span class="kw">template</span>&lt;<span class="kw">typename</span> <span class="ty">T</span>&gt;
+<span class="kw">class</span> <span class="ty">MRUList</span> {
+<span class="kw">public</span>:
+    <span class="cm">// ─── 类型别名（增强可读性）────────────────</span>
+    <span class="kw">using</span> value_type      = <span class="ty">T</span>;
+    <span class="kw">using</span> size_type       = <span class="ty">std::size_t</span>;
+    <span class="kw">using</span> const_reference = <span class="kw">const</span> <span class="ty">T</span>&amp;;
+
+    <span class="cm">// ─── 状态查询 ──────────────────────────────</span>
+    <span class="kw">bool</span>      <span class="fn">empty</span>() <span class="kw">const</span> noexcept { <span class="kw">return</span> items_.empty(); }
+    size_type <span class="fn">size</span>()  <span class="kw">const</span> noexcept { <span class="kw">return</span> items_.size(); }
+
+    <span class="cm">// ─── 访问最近使用项 ────────────────────────</span>
+    const_reference <span class="fn">top</span>() <span class="kw">const</span> {
+        <span class="fn">throw_if_empty</span>();
+        <span class="kw">return</span> items_.front();
+    }
+
+    <span class="cm">// ─── 按位置访问（O(n)，list 特性）──────────</span>
+    const_reference <span class="kw">operator</span>[](size_type index) <span class="kw">const</span> {
+        <span class="kw">if</span> (index >= items_.size())
+            <span class="kw">throw</span> <span class="ty">std::out_of_range</span>(<span class="str">"MRUList index out of range"</span>);
+        <span class="kw">auto</span> it = items_.begin();
+        <span class="ty">std</span>::<span class="fn">advance</span>(it, index);
+        <span class="kw">return</span> *it;
+    }
+
+    <span class="cm">// ─── 核心：添加（先去重，再插到头部）────────</span>
+    <span class="kw">void</span> <span class="fn">add</span>(value_type value) {
+        <span class="fn">remove_if_exists</span>(value);
+        items_.push_front(<span class="ty">std</span>::<span class="fn">move</span>(value));   <span class="cm">// O(1)</span>
+    }
+
+    <span class="cm">// ─── 迭代器支持 ────────────────────────────</span>
+    <span class="kw">auto</span> <span class="fn">begin</span>() <span class="kw">const</span> { <span class="kw">return</span> items_.begin(); }
+    <span class="kw">auto</span> <span class="fn">end</span>()   <span class="kw">const</span> { <span class="kw">return</span> items_.end(); }
+
+<span class="kw">private</span>:
+    <span class="ty">std::list</span>&lt;<span class="ty">T</span>&gt; items_;
+
+    <span class="kw">void</span> <span class="fn">throw_if_empty</span>() <span class="kw">const</span> {
+        <span class="kw">if</span> (items_.empty())
+            <span class="kw">throw</span> <span class="ty">std::out_of_range</span>(<span class="str">"MRUList is empty"</span>);
+    }
+
+    <span class="kw">void</span> <span class="fn">remove_if_exists</span>(<span class="kw">const</span> value_type&amp; value) {
+        <span class="kw">auto</span> it = <span class="ty">std</span>::<span class="fn">find</span>(items_.begin(), items_.end(), value);
+        <span class="kw">if</span> (it != items_.end()) items_.erase(it);
+    }
+};</pre>
+            </div>
+
+            <div class="result-box pass">
+                <div class="result-icon">✓</div>
+                <div><strong>重构后所有测试仍然通过</strong><br>
+                    All tests passed (11 assertions in 1 test case)<br>
+                    <br>→ 行为不变，结构更优。这正是 Refactor 阶段的意义。
+                </div>
+            </div>
+
+            <div class="cards">
+                <div class="card">
+                    <div class="card-title">重构改动了什么？</div>
+                    <p>vector → list，头部插入从 O(n) 变为 O(1)；抽取了 <code>throw_if_empty()</code> 和
+                        <code>remove_if_exists()</code> 两个私有方法；加了类型别名；加了 noexcept。
+                    </p>
+                </div>
+                <div class="card">
+                    <div class="card-title">重构没有改变什么？</div>
+                    <p>所有公开接口行为完全一致。测试是"安全网"——只要测试全绿，重构就是安全的。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ STEP 7 -->
+        <div class="step" id="step-7">
+            <div class="progress">
+                <span class="progress-label">8 / 8</span>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-red"></div>
+                <div class="progress-seg done-green"></div>
+                <div class="progress-seg done-amber"></div>
+                <div class="progress-seg done-blue"></div>
+            </div>
+
+            <div class="step-header">
+                <div class="phase-pill final">✅ Final</div>
+                <div>
+                    <div class="step-title">完整代码（可直接编译运行）</div>
+                    <div class="step-desc">两个文件：MRUList.h（实现）+ test_mrulist.cpp（完整测试）。</div>
+                </div>
+            </div>
+
+            <div class="full-code-label">📄 MRUList.h</div>
+            <div class="code-wrap">
+                <div class="code-label">
+                    <div class="dot dot-green"></div>MRUList.h — 完整头文件
+                </div>
+                <pre><span class="macro">#pragma once</span>
+<span class="macro">#include</span> <span class="str">&lt;list&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;algorithm&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;cstddef&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;stdexcept&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;iterator&gt;</span>
+
+<span class="cm">/// MRU（最近使用）列表</span>
+<span class="cm">/// 语义：</span>
+<span class="cm">///   - 最近 add 的元素排在最前（index 0）</span>
+<span class="cm">///   - 重复元素不会增加 size，而是移到最前</span>
+<span class="kw">template</span>&lt;<span class="kw">typename</span> <span class="ty">T</span>&gt;
+<span class="kw">class</span> <span class="ty">MRUList</span> {
+<span class="kw">public</span>:
+    <span class="kw">using</span> value_type      = <span class="ty">T</span>;
+    <span class="kw">using</span> size_type       = <span class="ty">std::size_t</span>;
+    <span class="kw">using</span> const_reference = <span class="kw">const</span> <span class="ty">T</span>&amp;;
+
+    <span class="cm">// ── 容量 ──────────────────────────────────</span>
+    <span class="kw">bool</span>      <span class="fn">empty</span>() <span class="kw">const</span> noexcept { <span class="kw">return</span> items_.empty(); }
+    size_type <span class="fn">size</span>()  <span class="kw">const</span> noexcept { <span class="kw">return</span> items_.size(); }
+
+    <span class="cm">// ── 元素访问 ──────────────────────────────</span>
+    const_reference <span class="fn">top</span>() <span class="kw">const</span> {
+        <span class="fn">throw_if_empty</span>();
+        <span class="kw">return</span> items_.front();
+    }
+
+    const_reference <span class="kw">operator</span>[](size_type index) <span class="kw">const</span> {
+        <span class="kw">if</span> (index >= items_.size())
+            <span class="kw">throw</span> <span class="ty">std::out_of_range</span>(<span class="str">"MRUList: index out of range"</span>);
+        <span class="kw">auto</span> it = items_.cbegin();
+        <span class="ty">std</span>::<span class="fn">advance</span>(it, index);
+        <span class="kw">return</span> *it;
+    }
+
+    <span class="cm">// ── 修改 ───────────────────────────────────</span>
+    <span class="kw">void</span> <span class="fn">add</span>(value_type value) {
+        <span class="fn">remove_if_exists</span>(value);
+        items_.push_front(<span class="ty">std</span>::<span class="fn">move</span>(value));
+    }
+
+    <span class="cm">// ── 迭代器 ────────────────────────────────</span>
+    <span class="kw">auto</span> <span class="fn">begin</span>() <span class="kw">const</span> noexcept { <span class="kw">return</span> items_.cbegin(); }
+    <span class="kw">auto</span> <span class="fn">end</span>()   <span class="kw">const</span> noexcept { <span class="kw">return</span> items_.cend(); }
+
+<span class="kw">private</span>:
+    <span class="ty">std::list</span>&lt;<span class="ty">T</span>&gt; items_;
+
+    <span class="kw">void</span> <span class="fn">throw_if_empty</span>() <span class="kw">const</span> {
+        <span class="kw">if</span> (items_.empty())
+            <span class="kw">throw</span> <span class="ty">std::out_of_range</span>(<span class="str">"MRUList is empty"</span>);
+    }
+
+    <span class="kw">void</span> <span class="fn">remove_if_exists</span>(<span class="kw">const</span> value_type&amp; value) {
+        <span class="kw">auto</span> it = <span class="ty">std</span>::<span class="fn">find</span>(items_.begin(), items_.end(), value);
+        <span class="kw">if</span> (it != items_.end()) items_.erase(it);
+    }
+};</pre>
+            </div>
+
+            <hr class="dim">
+
+            <div class="full-code-label">📄 test_mrulist.cpp</div>
+            <div class="code-wrap">
+                <div class="code-label">
+                    <div class="dot dot-green"></div>test_mrulist.cpp — 完整测试文件
+                </div>
+                <pre><span class="macro">#include</span> <span class="str">&lt;catch2/catch_test_macros.hpp&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;catch2/catch_session.hpp&gt;</span>
+<span class="macro">#include</span> <span class="str">&lt;string&gt;</span>
+<span class="macro">#include</span> <span class="str">"MRUList.h"</span>
+
+<span class="macro">TEST_CASE</span>(<span class="str">"An MRU list acts like a stack, "</span>
+          <span class="str">"but duplicate entries replace existing ones"</span>)
+{
+    <span class="cm">// ── Arrange ───────────────────────────────</span>
+    <span class="ty">MRUList</span>&lt;<span class="ty">std::string</span>&gt; list;
+
+    <span class="cm">// ── SECTION 1：初始状态 ───────────────────</span>
+    <span class="macro">SECTION</span>(<span class="str">"An empty list has no elements"</span>)
+    {
+        <span class="macro">REQUIRE</span>( list.empty() );
+        <span class="macro">REQUIRE</span>( list.size() == <span class="num">0</span> );
+    }
+
+    <span class="cm">// ── SECTION 2：添加第一个元素 ─────────────</span>
+    <span class="macro">SECTION</span>(<span class="str">"Adding to an empty list increases the size to 1"</span>)
+    {
+        list.<span class="fn">add</span>(<span class="str">"item1"</span>);
+
+        <span class="macro">REQUIRE</span>( list.empty() == <span class="kw">false</span> );
+        <span class="macro">REQUIRE</span>( list.size() == <span class="num">1</span> );
+    }
+
+    <span class="cm">// ── SECTION 3：MRU 顺序（最近使用排最前）───</span>
+    <span class="macro">SECTION</span>(<span class="str">"Most recently added item is first"</span>)
+    {
+        list.<span class="fn">add</span>(<span class="str">"item1"</span>);
+        list.<span class="fn">add</span>(<span class="str">"item2"</span>);
+        list.<span class="fn">add</span>(<span class="str">"item3"</span>);
+
+        <span class="macro">REQUIRE</span>( list.<span class="fn">top</span>() == <span class="str">"item3"</span> );
+        <span class="macro">REQUIRE</span>( list.size() == <span class="num">3</span> );
+    }
+
+    <span class="cm">// ── SECTION 4：核心去重语义 ───────────────</span>
+    <span class="macro">SECTION</span>(<span class="str">"Adding a duplicate moves it to the front, not increases size"</span>)
+    {
+        list.<span class="fn">add</span>(<span class="str">"item1"</span>);
+        list.<span class="fn">add</span>(<span class="str">"item2"</span>);
+        list.<span class="fn">add</span>(<span class="str">"item1"</span>);   <span class="cm">// item1 应该移到最前，size 不变</span>
+
+        <span class="macro">REQUIRE</span>( list.size() == <span class="num">2</span> );
+        <span class="macro">REQUIRE</span>( list.<span class="fn">top</span>() == <span class="str">"item1"</span> );
+        <span class="macro">REQUIRE</span>( list[<span class="num">1</span>] == <span class="str">"item2"</span> );
+    }
+
+    <span class="cm">// ── SECTION 5：索引访问 ───────────────────</span>
+    <span class="macro">SECTION</span>(<span class="str">"Elements can be accessed by index"</span>)
+    {
+        list.<span class="fn">add</span>(<span class="str">"a"</span>);
+        list.<span class="fn">add</span>(<span class="str">"b"</span>);
+        list.<span class="fn">add</span>(<span class="str">"c"</span>);
+
+        <span class="macro">REQUIRE</span>( list[<span class="num">0</span>] == <span class="str">"c"</span> );
+        <span class="macro">REQUIRE</span>( list[<span class="num">1</span>] == <span class="str">"b"</span> );
+        <span class="macro">REQUIRE</span>( list[<span class="num">2</span>] == <span class="str">"a"</span> );
+    }
+
+    <span class="cm">// ── SECTION 6：越界抛出异常 ───────────────</span>
+    <span class="macro">SECTION</span>(<span class="str">"top() on empty list throws"</span>)
+    {
+        <span class="macro">REQUIRE_THROWS_AS</span>( list.<span class="fn">top</span>(), <span class="ty">std::out_of_range</span> );
+    }
+}
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">int</span> argc, <span class="kw">char</span>* argv[]) {
+    <span class="kw">return</span> <span class="ty">Catch</span>::<span class="fn">Session</span>().<span class="fn">run</span>(argc, argv);
+}</pre>
+            </div>
+
+            <div class="result-box pass">
+                <div class="result-icon">✓</div>
+                <div><strong>全部通过</strong><br>
+                    All tests passed (14 assertions in 1 test case)<br>
+                    <br>编译命令：<br>
+                    g++ -std=c++17 test_mrulist.cpp -o test -lcatch2 &amp;&amp; ./test
+                </div>
+            </div>
+
+            <div class="cards">
+                <div class="card">
+                    <div class="card-title">TDD 循环总结</div>
+                    <p>完成了 3 轮 Red→Green→Refactor：初始状态 → 添加元素 → MRU 完整语义。每轮只做一件小事，复杂度分段收敛。</p>
+                </div>
+                <div class="card">
+                    <div class="card-title">为什么用 std::list？</div>
+                    <p>MRU 最频繁的操作是头部插入和随机位置删除，<code>std::list</code> 两者均为 O(1)（erase 需要已知迭代器）。索引访问 O(n) 但不是主要操作。</p>
+                </div>
+                <div class="card">
+                    <div class="card-title">测试即文档</div>
+                    <p>6 个 SECTION 名称连起来就是完整的行为规范：空列表、添加、MRU 顺序、去重、索引访问、异常边界。</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const steps = document.querySelectorAll('.step');
+        const tabs = document.querySelectorAll('nav button');
+        let current = 0;
+
+        function goto(i) {
+            steps[current].classList.remove('active');
+            tabs[current].classList.remove('active');
+            current = i;
+            steps[current].classList.add('active');
+            tabs[current].classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Inject prev/next buttons into each step
+        steps.forEach((step, i) => {
+            const nav = document.createElement('div');
+            nav.className = 'step-nav';
+            const prev = document.createElement('button');
+            prev.className = 'btn';
+            prev.textContent = '← 上一步';
+            prev.disabled = i === 0;
+            prev.onclick = () => goto(i - 1);
+            const next = document.createElement('button');
+            next.className = i === steps.length - 1 ? 'btn' : 'btn primary';
+            next.textContent = i === steps.length - 1 ? '✓ 完成' : '下一步 →';
+            next.disabled = i === steps.length - 1;
+            next.onclick = () => goto(i + 1);
+            nav.appendChild(prev);
+            nav.appendChild(next);
+            step.appendChild(nav);
+        });
+    </script>
+</body>
+
+</html>
