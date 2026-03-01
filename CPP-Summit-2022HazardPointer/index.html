@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>危险指针完整演示</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+        :root {
+            --bg: #0b0f1a;
+            --surface: #111827;
+            --surface2: #1a2235;
+            --border: #1f2d45;
+            --accent: #3b82f6;
+            --cyan: #06b6d4;
+            --green: #10b981;
+            --red: #ef4444;
+            --yellow: #f59e0b;
+            --purple: #8b5cf6;
+            --text: #e2e8f0;
+            --dim: #475569;
+            --mid: #94a3b8;
+            --mono: 'JetBrains Mono', monospace;
+            --sans: 'Noto Sans SC', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            min-height: 100vh;
+            padding: 28px 20px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(59, 130, 246, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.025) 1px, transparent 1px);
+            background-size: 36px 36px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 28px;
+        }
+
+        h1 {
+            font-family: var(--mono);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            color: var(--dim);
+            margin-top: 4px;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px 8px 0 0;
+            padding: 6px 6px 0;
+        }
+
+        .tab {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            padding: 7px 16px;
+            border-radius: 5px 5px 0 0;
+            cursor: pointer;
+            color: var(--dim);
+            border: 1px solid transparent;
+            border-bottom: none;
+            transition: all 0.2s;
+            background: transparent;
+            user-select: none;
+        }
+
+        .tab:hover {
+            color: var(--mid);
+        }
+
+        .tab.active {
+            background: var(--bg);
+            color: var(--accent);
+            border-color: var(--border);
+        }
+
+        .tab-content {
+            display: none;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 24px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* LAYOUT */
+        .row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            align-items: flex-start;
+        }
+
+        .col {
+            flex: 1;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            position: relative;
+        }
+
+        .card-title {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--mid);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-family: var(--mono);
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-blue {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .badge-green {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-yellow {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--yellow);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge-red {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-gray {
+            background: rgba(71, 85, 105, 0.3);
+            color: var(--dim);
+            border: 1px solid var(--border);
+        }
+
+        /* SVG AREA */
+        .svg-wrap {
+            border-radius: 6px;
+            overflow: hidden;
+            background: #080c14;
+            border: 1px solid var(--border);
+        }
+
+        svg text {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* CONTROLS */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            padding: 7px 16px;
+            border-radius: 5px;
+            border: 1px solid;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: rgba(59, 130, 246, 0.12);
+            border-color: rgba(59, 130, 246, 0.4);
+            color: var(--accent);
+        }
+
+        .btn-primary:hover {
+            background: rgba(59, 130, 246, 0.22);
+        }
+
+        .btn-green {
+            background: rgba(16, 185, 129, 0.12);
+            border-color: rgba(16, 185, 129, 0.4);
+            color: var(--green);
+        }
+
+        .btn-green:hover {
+            background: rgba(16, 185, 129, 0.22);
+        }
+
+        .btn-red {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: var(--red);
+        }
+
+        .btn-red:hover {
+            background: rgba(239, 68, 68, 0.22);
+        }
+
+        .btn-yellow {
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.4);
+            color: var(--yellow);
+        }
+
+        .btn-yellow:hover {
+            background: rgba(245, 158, 11, 0.22);
+        }
+
+        .btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        /* LOG */
+        .log-box {
+            background: #060910;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            height: 120px;
+            overflow-y: auto;
+            color: var(--mid);
+        }
+
+        .log-line {
+            line-height: 1.7;
+        }
+
+        .log-line.info {
+            color: var(--accent);
+        }
+
+        .log-line.ok {
+            color: var(--green);
+        }
+
+        .log-line.warn {
+            color: var(--yellow);
+        }
+
+        .log-line.err {
+            color: var(--red);
+        }
+
+        .log-line.sys {
+            color: var(--purple);
+        }
+
+        /* CODE */
+        pre {
+            background: #060910;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px 16px;
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            line-height: 1.7;
+            overflow-x: auto;
+            color: var(--mid);
+        }
+
+        .kw {
+            color: #7dd3fc;
+        }
+
+        .type {
+            color: #86efac;
+        }
+
+        .fn {
+            color: #fde68a;
+        }
+
+        .cm {
+            color: var(--dim);
+            font-style: italic;
+        }
+
+        .str {
+            color: #fca5a5;
+        }
+
+        .num {
+            color: #c4b5fd;
+        }
+
+        .op {
+            color: var(--cyan);
+        }
+
+        /* STEP INFO */
+        .step-info {
+            background: rgba(59, 130, 246, 0.06);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 0.78rem;
+            color: var(--mid);
+            margin-top: 12px;
+            min-height: 44px;
+            line-height: 1.5;
+        }
+
+        .step-info strong {
+            color: var(--text);
+        }
+
+        /* COMPARISON TABLE */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            font-family: var(--mono);
+        }
+
+        th {
+            background: var(--surface2);
+            color: var(--mid);
+            padding: 8px 12px;
+            text-align: left;
+            border: 1px solid var(--border);
+            font-weight: 500;
+        }
+
+        td {
+            padding: 7px 12px;
+            border: 1px solid var(--border);
+            color: var(--mid);
+        }
+
+        td.plus {
+            color: var(--green);
+        }
+
+        td.minus {
+            color: var(--red);
+        }
+
+        td.neutral {
+            color: var(--yellow);
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        tr.highlight-row td {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* PROGRESS */
+        .progress-wrap {
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            margin-bottom: 4px;
+        }
+
+        .progress-bar {
+            height: 3px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--cyan));
+            transition: width 0.4s ease;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 16px 0;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>// hazard_pointer — 完整交互演示</h1>
+            <div class="subtitle">C++26 危险指针安全内存回收机制 · 可视化 + 代码 + 对比</div>
+        </header>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('viz')">① 核心机制可视化</div>
+            <div class="tab" onclick="switchTab('code')">② 完整代码示例</div>
+            <div class="tab" onclick="switchTab('reclaim')">③ 异步回收过程</div>
+            <div class="tab" onclick="switchTab('compare')">④ 方案对比</div>
+        </div>
+
+        <!-- TAB 1: 核心机制可视化 -->
+        <div class="tab-content active" id="tab-viz">
+            <div class="row">
+                <div class="col" style="flex:1.4">
+                    <div class="card">
+                        <div class="card-title">
+                            <span style="color:var(--cyan)">■</span> 内存状态可视化
+                            <span id="viz-badge" class="badge badge-blue">就绪</span>
+                        </div>
+                        <div class="svg-wrap">
+                            <svg id="main-svg" width="100%" viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <marker id="arr-blue" markerWidth="8" markerHeight="6" refX="7" refY="3"
+                                        orient="auto">
+                                        <polygon points="0 0, 8 3, 0 6" fill="#3b82f6" />
+                                    </marker>
+                                    <marker id="arr-green" markerWidth="8" markerHeight="6" refX="7" refY="3"
+                                        orient="auto">
+                                        <polygon points="0 0, 8 3, 0 6" fill="#10b981" />
+                                    </marker>
+                                    <marker id="arr-red" markerWidth="8" markerHeight="6" refX="7" refY="3"
+                                        orient="auto">
+                                        <polygon points="0 0, 8 3, 0 6" fill="#ef4444" />
+                                    </marker>
+                                    <marker id="arr-yellow" markerWidth="8" markerHeight="6" refX="7" refY="3"
+                                        orient="auto">
+                                        <polygon points="0 0, 8 3, 0 6" fill="#f59e0b" />
+                                    </marker>
+                                    <filter id="glow-blue">
+                                        <feGaussianBlur stdDeviation="2.5" result="blur" />
+                                        <feMerge>
+                                            <feMergeNode in="blur" />
+                                            <feMergeNode in="SourceGraphic" />
+                                        </feMerge>
+                                    </filter>
+                                    <filter id="glow-green">
+                                        <feGaussianBlur stdDeviation="3" result="blur" />
+                                        <feMerge>
+                                            <feMergeNode in="blur" />
+                                            <feMergeNode in="SourceGraphic" />
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+
+                                <!-- Background panels -->
+                                <!-- Shared Pointer Area -->
+                                <rect x="10" y="10" width="200" height="80" rx="6" fill="#0d1420" stroke="#1e2d45"
+                                    stroke-width="1" />
+                                <text x="20" y="28" font-size="9" fill="#475569" letter-spacing="1">SHARED ATOMIC</text>
+                                <rect id="src-box" x="20" y="34" width="180" height="46" rx="4" fill="#111827"
+                                    stroke="#1f2d45" stroke-width="1" />
+                                <text x="28" y="50" font-size="9" fill="#64748b">src_ (atomic&lt;Foo*&gt;)</text>
+                                <text id="src-val" x="28" y="68" font-size="12" fill="#3b82f6" font-weight="500">→
+                                    0xA000 (FooA)</text>
+
+                                <!-- Thread A -->
+                                <rect x="10" y="110" width="200" height="130" rx="6" fill="#0d1420" stroke="#1e2d45"
+                                    stroke-width="1" />
+                                <text x="20" y="128" font-size="9" fill="#475569" letter-spacing="1">THREAD A
+                                    (Reader)</text>
+
+                                <rect id="ha-box" x="20" y="134" width="180" height="36" rx="4" fill="#111827"
+                                    stroke="#1f2d45" stroke-width="1" />
+                                <text x="28" y="148" font-size="9" fill="#64748b">hazard_pointer h</text>
+                                <text id="ha-val" x="28" y="162" font-size="11" fill="#475569">[ empty ]</text>
+
+                                <rect x="20" y="178" width="180" height="24" rx="4" fill="#0a0f1a" stroke="#1a2535"
+                                    stroke-width="1" />
+                                <text id="ta-state" x="28" y="193" font-size="10" fill="#475569">状态：初始化</text>
+
+                                <rect x="20" y="208" width="180" height="24" rx="4" fill="#0a0f1a" stroke="#1a2535"
+                                    stroke-width="1" />
+                                <text id="ta-ptr" x="28" y="223" font-size="10" fill="#475569">ptr = null</text>
+
+                                <!-- Thread B -->
+                                <rect x="10" y="260" width="200" height="130" rx="6" fill="#0d1420" stroke="#1e2d45"
+                                    stroke-width="1" />
+                                <text x="20" y="278" font-size="9" fill="#475569" letter-spacing="1">THREAD B
+                                    (Writer)</text>
+
+                                <rect id="hb-box" x="20" y="284" width="180" height="36" rx="4" fill="#111827"
+                                    stroke="#1f2d45" stroke-width="1" />
+                                <text x="28" y="298" font-size="9" fill="#64748b">atomic&lt;Foo*&gt; src_</text>
+                                <text id="hb-val" x="28" y="312" font-size="11" fill="#3b82f6">→ 0xA000 (FooA)</text>
+
+                                <rect x="20" y="328" width="180" height="24" rx="4" fill="#0a0f1a" stroke="#1a2535"
+                                    stroke-width="1" />
+                                <text id="tb-state" x="28" y="343" font-size="10" fill="#475569">状态：就绪</text>
+
+                                <rect x="20" y="358" width="180" height="24" rx="4" fill="#0a0f1a" stroke="#1a2535"
+                                    stroke-width="1" />
+                                <text id="tb-old" x="28" y="373" font-size="10" fill="#475569">oldptr = null</text>
+
+                                <!-- Heap Objects Area -->
+                                <rect x="250" y="10" width="440" height="400" rx="6" fill="#080c14" stroke="#1e2d45"
+                                    stroke-width="1" />
+                                <text x="262" y="28" font-size="9" fill="#475569" letter-spacing="1">HEAP MEMORY</text>
+
+                                <!-- Object FooA -->
+                                <g id="obj-a">
+                                    <rect id="obj-a-box" x="280" y="40" width="140" height="80" rx="6" fill="#111827"
+                                        stroke="#3b82f6" stroke-width="1.5" />
+                                    <text x="295" y="60" font-size="10" fill="#7dd3fc" font-weight="500">Object:
+                                        FooA</text>
+                                    <text x="295" y="77" font-size="9" fill="#64748b">addr: 0xA000</text>
+                                    <text x="295" y="92" font-size="9" fill="#64748b">data: { val=42 }</text>
+                                    <text id="obj-a-status" x="295" y="108" font-size="9" fill="#10b981">● 活跃
+                                        (Active)</text>
+                                </g>
+
+                                <!-- Object FooB (hidden initially) -->
+                                <g id="obj-b" opacity="0.2">
+                                    <rect id="obj-b-box" x="460" y="40" width="140" height="80" rx="6" fill="#111827"
+                                        stroke="#8b5cf6" stroke-width="1.5" />
+                                    <text x="475" y="60" font-size="10" fill="#c4b5fd" font-weight="500">Object:
+                                        FooB</text>
+                                    <text x="475" y="77" font-size="9" fill="#64748b">addr: 0xB000</text>
+                                    <text x="475" y="92" font-size="9" fill="#64748b">data: { val=99 }</text>
+                                    <text id="obj-b-status" x="475" y="108" font-size="9" fill="#8b5cf6">● 待命
+                                        (New)</text>
+                                </g>
+
+                                <!-- Hazard Pointer List -->
+                                <rect x="260" y="150" width="420" height="80" rx="6" fill="#0d1420" stroke="#1e2d45"
+                                    stroke-width="1" />
+                                <text x="272" y="168" font-size="9" fill="#475569" letter-spacing="1">GLOBAL HAZARD
+                                    POINTER LIST</text>
+                                <rect id="hp0-box" x="270" y="174" width="120" height="44" rx="4" fill="#111827"
+                                    stroke="#1f2d45" stroke-width="1" />
+                                <text x="278" y="189" font-size="8" fill="#64748b">HP[0] Thread A</text>
+                                <text id="hp0-val" x="278" y="207" font-size="11" fill="#475569">null</text>
+
+                                <rect id="hp1-box" x="400" y="174" width="120" height="44" rx="4" fill="#111827"
+                                    stroke="#1f2d45" stroke-width="1" />
+                                <text x="408" y="189" font-size="8" fill="#64748b">HP[1] Thread B</text>
+                                <text id="hp1-val" x="408" y="207" font-size="11" fill="#475569">null</text>
+
+                                <!-- Retired List -->
+                                <rect x="260" y="250" width="420" height="70" rx="6" fill="#0d1420" stroke="#1e2d45"
+                                    stroke-width="1" />
+                                <text x="272" y="268" font-size="9" fill="#475569" letter-spacing="1">RETIRED OBJECTS
+                                    LIST</text>
+                                <g id="retired-area">
+                                    <rect x="270" y="274" width="400" height="36" rx="4" fill="#0a0f1a" stroke="#1a2535"
+                                        stroke-width="1" />
+                                    <text id="retired-val" x="280" y="296" font-size="10" fill="#475569">[ 空 ]</text>
+                                </g>
+
+                                <!-- Arrows (all hidden initially) -->
+                                <!-- src -> obj-a -->
+                                <line id="arr-src-a" x1="210" y1="57" x2="278" y2="75" stroke="#3b82f6"
+                                    stroke-width="1.5" marker-end="url(#arr-blue)" opacity="1" />
+
+                                <!-- Thread A HP -> obj -->
+                                <line id="arr-ha-hp" x1="110" y1="152" x2="270" y2="190" stroke="#10b981"
+                                    stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-green)"
+                                    opacity="0" />
+
+                                <!-- HP0 -> obj -->
+                                <line id="arr-hp0-obj" x1="330" y1="174" x2="350" y2="122" stroke="#10b981"
+                                    stroke-width="1.5" marker-end="url(#arr-green)" opacity="0" />
+
+                                <!-- src -> obj-b (after update) -->
+                                <line id="arr-src-b" x1="210" y1="52" x2="458" y2="68" stroke="#8b5cf6"
+                                    stroke-width="1.5" marker-end="url(#arr-blue)" opacity="0" />
+
+                                <!-- Reclaim cross -->
+                                <line id="reclaim-x1" x1="285" y1="45" x2="415" y2="115" stroke="#ef4444"
+                                    stroke-width="2.5" opacity="0" />
+                                <line id="reclaim-x2" x1="415" y1="45" x2="285" y2="115" stroke="#ef4444"
+                                    stroke-width="2.5" opacity="0" />
+
+                                <!-- BLOCK marker -->
+                                <g id="block-marker" opacity="0">
+                                    <rect x="600" y="290" width="86" height="24" rx="4" fill="rgba(245,158,11,0.15)"
+                                        stroke="#f59e0b" stroke-width="1" />
+                                    <text x="610" y="305" font-size="9" fill="#f59e0b">⚡ BLOCKED!</text>
+                                </g>
+
+                                <!-- Safe reclaim marker -->
+                                <g id="safe-marker" opacity="0">
+                                    <rect x="600" y="290" width="86" height="24" rx="4" fill="rgba(16,185,129,0.15)"
+                                        stroke="#10b981" stroke-width="1" />
+                                    <text x="608" y="305" font-size="9" fill="#10b981">✓ 安全回收</text>
+                                </g>
+                            </svg>
+                        </div>
+                        <div id="step-info" class="step-info">
+                            <strong>初始状态：</strong> 共享指针 src_ 指向堆上的 FooA 对象。两个线程均未开始操作。点击下方按钮逐步演示。
+                        </div>
+                        <div class="controls">
+                            <button class="btn btn-primary" id="btn-protect" onclick="stepProtect()">① 读者:
+                                protect()</button>
+                            <button class="btn btn-yellow" id="btn-update" onclick="stepUpdate()" disabled>② 写者:
+                                update()</button>
+                            <button class="btn btn-green" id="btn-reclaim" onclick="stepReclaim()" disabled>③
+                                尝试回收</button>
+                            <button class="btn btn-red" id="btn-release" onclick="stepRelease()" disabled>④
+                                释放保护</button>
+                            <button class="btn btn-primary" id="btn-reclaim2" onclick="stepReclaim2()" disabled>⑤
+                                再次回收</button>
+                            <button class="btn" style="border-color:var(--border);color:var(--dim)"
+                                onclick="resetViz()">重置</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col" style="flex:0.6">
+                    <div class="card" style="margin-bottom:12px">
+                        <div class="card-title"><span style="color:var(--green)">■</span> 执行日志</div>
+                        <div class="log-box" id="log-box">
+                            <div class="log-line sys">// 危险指针演示初始化完成</div>
+                            <div class="log-line sys">// 点击按钮开始逐步演示</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><span style="color:var(--yellow)">■</span> 关键不变量</div>
+                        <div style="font-size:0.75rem; color:var(--mid); line-height:1.8;">
+                            <div id="inv1"
+                                style="padding:4px 8px; border-radius:4px; margin-bottom:4px; background:rgba(71,85,105,0.15); border:1px solid var(--border)">
+                                <span style="color:var(--dim)">○</span> HP 写入 → 内存屏障 → 验证 src 未变
+                            </div>
+                            <div id="inv2"
+                                style="padding:4px 8px; border-radius:4px; margin-bottom:4px; background:rgba(71,85,105,0.15); border:1px solid var(--border)">
+                                <span style="color:var(--dim)">○</span> retire() 后，扫描 HP 列表确认安全
+                            </div>
+                            <div id="inv3"
+                                style="padding:4px 8px; border-radius:4px; margin-bottom:4px; background:rgba(71,85,105,0.15); border:1px solid var(--border)">
+                                <span style="color:var(--dim)">○</span> HP 保护期间，对象不被回收
+                            </div>
+                            <div id="inv4"
+                                style="padding:4px 8px; border-radius:4px; background:rgba(71,85,105,0.15); border:1px solid var(--border)">
+                                <span style="color:var(--dim)">○</span> 未回收对象上界 = O(H)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: 完整代码示例 -->
+        <div class="tab-content" id="tab-code">
+            <div class="row">
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title"><span style="color:var(--accent)">■</span> 1. 定义可保护对象</div>
+                        <pre><span class="cm">// 继承 hazard_pointer_obj_base 使对象可被危险指针保护</span>
+<span class="cm">// T=Foo 自身，D=default_delete&lt;Foo&gt;（默认）</span>
+<span class="kw">class</span> <span class="type">Foo</span> : <span class="kw">public</span> <span class="type">hazard_pointer_obj_base</span>&lt;<span class="type">Foo</span>&gt; {
+<span class="kw">public</span>:
+    <span class="kw">int</span> value;
+    <span class="kw">std</span>::<span class="type">string</span> name;
+    <span class="fn">Foo</span>(<span class="kw">int</span> v, <span class="kw">std</span>::<span class="type">string</span> n) : value(v), name(n) {}
+    <span class="cm">// retire() 方法已由基类提供</span>
+    <span class="cm">// 当引用计数归零时，系统自动调用 ~Foo() + operator delete</span>
+};</pre>
+                    </div>
+                    <div class="card" style="margin-top:12px">
+                        <div class="card-title"><span style="color:var(--cyan)">■</span> 2. 共享状态与读操作</div>
+                        <pre><span class="cm">// 全局共享原子指针 —— 多线程共享的数据入口</span>
+<span class="type">std</span>::<span class="type">atomic</span>&lt;<span class="type">Foo</span>*&gt; src_;
+
+<span class="cm">// 读操作（高频调用，无锁，可阻塞）</span>
+<span class="type">Result</span> <span class="fn">read</span>(<span class="type">Func</span> fn) {
+    <span class="cm">// ① 获取危险指针槽（从线程本地缓存或全局链表）</span>
+    <span class="type">hazard_pointer</span> h = <span class="fn">make_hazard_pointer</span>();
+
+    <span class="cm">// ② protect(src_) 内部执行：</span>
+    <span class="cm">//    loop:                           </span>
+    <span class="cm">//      ptr = src_.load()              // 读取指针</span>
+    <span class="cm">//      hazard_slot = ptr              // 发布到危险指针槽 + 内存屏障</span>
+    <span class="cm">//      if src_.load() == ptr: break   // 验证未被替换</span>
+    <span class="type">Foo</span>* ptr = h.<span class="fn">protect</span>(src_);
+
+    <span class="cm">// ③ 此时 *ptr 受保护，即使 Writer 并发调用 update()</span>
+    <span class="cm">//    也不会回收 *ptr，可以安全使用任意时长（包括阻塞）</span>
+    <span class="type">Result</span> r = <span class="fn">fn</span>(ptr);
+
+    <span class="cm">// ④ h 析构时自动清除危险指针槽 → 允许回收</span>
+    <span class="kw">return</span> r;
+}</pre>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title"><span style="color:var(--yellow)">■</span> 3. 写操作（更新）</div>
+                        <pre><span class="cm">// 写操作（低频调用，无锁，不阻塞读者）</span>
+<span class="kw">void</span> <span class="fn">update</span>(<span class="type">Foo</span>* newptr) {
+    <span class="cm">// ① 原子替换：src_ = newptr，返回旧指针</span>
+    <span class="cm">//    此操作之后，新的 read() 调用将看到 newptr</span>
+    <span class="cm">//    正在进行的 read() 仍持有对 oldptr 的危险指针保护</span>
+    <span class="type">Foo</span>* oldptr = src_.<span class="fn">exchange</span>(newptr);
+
+    <span class="cm">// ② retire() 语义：</span>
+    <span class="cm">//    - 将 oldptr 加入"退休列表"（不是立即 delete）</span>
+    <span class="cm">//    - 当退休列表长度 >= max(1000, 2*HP数量) 时</span>
+    <span class="cm">//      触发异步扫描：扫描全部 HP 槽，</span>
+    <span class="cm">//      若 oldptr 不在任何 HP 中 → 安全 delete</span>
+    oldptr-&gt;<span class="fn">retire</span>();
+}
+
+<span class="cm">// 使用示例</span>
+<span class="kw">int</span> <span class="fn">main</span>() {
+    src_.<span class="fn">store</span>(<span class="kw">new</span> <span class="type">Foo</span>(<span class="num">42</span>, <span class="str">"FooA"</span>));
+
+    <span class="cm">// 读线程（可多个并发）</span>
+    <span class="type">std</span>::<span class="type">thread</span> reader([]{
+        <span class="kw">while</span>(<span class="kw">true</span>) {
+            <span class="fn">read</span>([](auto* foo) {
+                <span class="cm">// 安全访问 *foo，不需要任何锁</span>
+                process(foo-&gt;value);
+            });
+        }
+    });
+
+    <span class="cm">// 写线程</span>
+    <span class="type">std</span>::<span class="type">thread</span> writer([]{
+        <span class="fn">update</span>(<span class="kw">new</span> <span class="type">Foo</span>(<span class="num">99</span>, <span class="str">"FooB"</span>));
+    });
+}</pre>
+                    </div>
+                    <div class="card" style="margin-top:12px">
+                        <div class="card-title"><span style="color:var(--purple)">■</span> 4. 高级用法：Hand-over-hand 遍历
+                        </div>
+                        <pre><span class="cm">// 链表节点，可被危险指针保护</span>
+<span class="kw">struct</span> <span class="type">Node</span> : <span class="type">hazard_pointer_obj_base</span>&lt;<span class="type">Node</span>&gt; {
+    <span class="type">std</span>::<span class="type">atomic</span>&lt;<span class="type">Node</span>*&gt; next;
+    <span class="kw">int</span> val;
+};
+
+<span class="cm">// 无锁遍历（两个危险指针交替保护相邻节点）</span>
+<span class="type">Node</span>* <span class="fn">find</span>(<span class="kw">int</span> target) {
+    <span class="cm">// 同时持有两个危险指针</span>
+    <span class="type">hazard_pointer</span> h0 = <span class="fn">make_hazard_pointer</span>();
+    <span class="type">hazard_pointer</span> h1 = <span class="fn">make_hazard_pointer</span>();
+
+    <span class="type">Node</span>* prev = h0.<span class="fn">protect</span>(head_);
+    <span class="kw">while</span>(prev) {
+        <span class="type">Node</span>* curr = h1.<span class="fn">protect</span>(prev-&gt;next);
+        <span class="kw">if</span>(curr &amp;&amp; curr-&gt;val == target)
+            <span class="kw">return</span> curr;
+        <span class="cm">// 交换：h1 的保护转给 h0，h1 继续前进</span>
+        h0.<span class="fn">swap</span>(h1);
+        prev = curr;
+    }
+    <span class="kw">return nullptr</span>;
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: 异步回收过程 -->
+        <div class="tab-content" id="tab-reclaim">
+            <div class="row">
+                <div class="col" style="flex:1.4">
+                    <div class="card">
+                        <div class="card-title"><span style="color:var(--yellow)">■</span> 异步回收流程可视化</div>
+                        <div class="svg-wrap">
+                            <svg id="reclaim-svg" width="100%" viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <marker id="rarr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                                        <polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
+                                    </marker>
+                                    <marker id="rarr-y" markerWidth="8" markerHeight="6" refX="7" refY="3"
+                                        orient="auto">
+                                        <polygon points="0 0, 8 3, 0 6" fill="#f59e0b" />
+                                    </marker>
+                                    <marker id="rarr-g" markerWidth="8" markerHeight="6" refX="7" refY="3"
+                                        orient="auto">
+                                        <polygon points="0 0, 8 3, 0 6" fill="#10b981" />
+                                    </marker>
+                                    <marker id="rarr-r" markerWidth="8" markerHeight="6" refX="7" refY="3"
+                                        orient="auto">
+                                        <polygon points="0 0, 8 3, 0 6" fill="#ef4444" />
+                                    </marker>
+                                </defs>
+
+                                <!-- Step 1: Retired List -->
+                                <rect x="10" y="10" width="680" height="70" rx="6" fill="#0d1420" stroke="#1e2d45" />
+                                <text x="22" y="28" font-size="9" fill="#475569" letter-spacing="1">STEP 1 ·
+                                    退休列表（已移除但未回收）</text>
+
+                                <!-- Retired objects -->
+                                <g id="r-obj1">
+                                    <rect x="22" y="34" width="90" height="36" rx="4" fill="#1a1a2e" stroke="#f59e0b"
+                                        stroke-width="1.2" />
+                                    <text x="30" y="50" font-size="9" fill="#f59e0b">0xA000</text>
+                                    <text x="30" y="63" font-size="8" fill="#64748b">FooA</text>
+                                </g>
+                                <g id="r-obj2">
+                                    <rect x="122" y="34" width="90" height="36" rx="4" fill="#1a1a2e" stroke="#f59e0b"
+                                        stroke-width="1.2" />
+                                    <text x="130" y="50" font-size="9" fill="#f59e0b">0xC000</text>
+                                    <text x="130" y="63" font-size="8" fill="#64748b">FooC</text>
+                                </g>
+                                <g id="r-obj3">
+                                    <rect x="222" y="34" width="90" height="36" rx="4" fill="#1a1a2e" stroke="#f59e0b"
+                                        stroke-width="1.2" />
+                                    <text x="230" y="50" font-size="9" fill="#f59e0b">0xD000</text>
+                                    <text x="230" y="63" font-size="8" fill="#64748b">FooD</text>
+                                </g>
+                                <text x="325" y="55" font-size="16" fill="#475569">···</text>
+
+                                <!-- Trigger condition -->
+                                <rect x="420" y="30" width="260" height="44" rx="4" fill="rgba(245,158,11,0.08)"
+                                    stroke="rgba(245,158,11,0.3)" />
+                                <text x="432" y="47" font-size="9" fill="#f59e0b">触发条件：</text>
+                                <text x="432" y="62" font-size="9" fill="#94a3b8">|retired| ≥ max(1000, 2×|HP|)</text>
+
+                                <!-- Step 2: Read HP list -->
+                                <rect x="10" y="100" width="680" height="80" rx="6" fill="#0d1420" stroke="#1e2d45" />
+                                <text x="22" y="118" font-size="9" fill="#475569" letter-spacing="1">STEP 2 · 读取全部危险指针 →
+                                    存入本地哈希集合</text>
+
+                                <rect x="22" y="124" width="636" height="46" rx="4" fill="#111827" stroke="#1f2d45" />
+                                <text x="32" y="141" font-size="9" fill="#64748b">HP[0]=</text>
+                                <rect x="65" y="128" width="70" height="26" rx="3" fill="rgba(16,185,129,0.12)"
+                                    stroke="rgba(16,185,129,0.4)" />
+                                <text x="74" y="144" font-size="9" fill="#10b981">0xA000</text>
+
+                                <text x="148" y="141" font-size="9" fill="#64748b">HP[1]=</text>
+                                <rect x="181" y="128" width="55" height="26" rx="3" fill="rgba(71,85,105,0.2)"
+                                    stroke="#1f2d45" />
+                                <text x="189" y="144" font-size="9" fill="#475569">null</text>
+
+                                <text x="248" y="141" font-size="9" fill="#64748b">HP[2]=</text>
+                                <rect x="281" y="128" width="70" height="26" rx="3" fill="rgba(16,185,129,0.12)"
+                                    stroke="rgba(16,185,129,0.4)" />
+                                <text x="290" y="144" font-size="9" fill="#10b981">0xA000</text>
+
+                                <text x="364" y="141" font-size="9" fill="#64748b">HP[3]=</text>
+                                <rect x="397" y="128" width="55" height="26" rx="3" fill="rgba(71,85,105,0.2)"
+                                    stroke="#1f2d45" />
+                                <text x="405" y="144" font-size="9" fill="#475569">null</text>
+
+                                <!-- Hash set result -->
+                                <text x="470" y="136" font-size="8" fill="#475569">→ hash_set =</text>
+                                <rect x="540" y="124" width="110" height="26" rx="3" fill="rgba(6,182,212,0.1)"
+                                    stroke="rgba(6,182,212,0.3)" />
+                                <text x="548" y="141" font-size="9" fill="#06b6d4">{ 0xA000 }</text>
+                                <text x="540" y="162" font-size="8" fill="#475569">去重后仅一个</text>
+
+                                <!-- Step 3: Match -->
+                                <rect x="10" y="200" width="680" height="80" rx="6" fill="#0d1420" stroke="#1e2d45" />
+                                <text x="22" y="218" font-size="9" fill="#475569" letter-spacing="1">STEP 3 ·
+                                    匹配：逐一检查退休对象地址是否在 hash_set 中</text>
+
+                                <!-- Check FooA -->
+                                <g>
+                                    <rect x="22" y="224" width="90" height="46" rx="4" fill="rgba(245,158,11,0.08)"
+                                        stroke="#f59e0b" />
+                                    <text x="30" y="240" font-size="9" fill="#f59e0b">0xA000</text>
+                                    <text x="30" y="253" font-size="8" fill="#64748b">FooA</text>
+                                    <text x="30" y="264" font-size="9" fill="#f59e0b">∈ HP? ✓</text>
+                                </g>
+                                <line x1="113" y1="247" x2="140" y2="247" stroke="#f59e0b" marker-end="url(#rarr-y)" />
+                                <text x="150" y="251" font-size="8" fill="#f59e0b">放回退休列表</text>
+
+                                <!-- Check FooC -->
+                                <g>
+                                    <rect x="22" y="278" width="90" height="46" rx="4" fill="rgba(16,185,129,0.08)"
+                                        stroke="#10b981" />
+                                    <text x="30" y="294" font-size="9" fill="#10b981">0xC000</text>
+                                    <text x="30" y="307" font-size="8" fill="#64748b">FooC</text>
+                                    <text x="30" y="318" font-size="9" fill="#10b981">∈ HP? ✗</text>
+                                </g>
+                                <line x1="113" y1="301" x2="140" y2="301" stroke="#10b981" marker-end="url(#rarr-g)" />
+                                <text x="150" y="305" font-size="8" fill="#10b981">→ 安全回收 (delete)</text>
+
+                                <!-- Check FooD -->
+                                <g>
+                                    <rect x="340" y="224" width="90" height="46" rx="4" fill="rgba(16,185,129,0.08)"
+                                        stroke="#10b981" />
+                                    <text x="348" y="240" font-size="9" fill="#10b981">0xD000</text>
+                                    <text x="348" y="253" font-size="8" fill="#64748b">FooD</text>
+                                    <text x="348" y="264" font-size="9" fill="#10b981">∈ HP? ✗</text>
+                                </g>
+                                <line x1="431" y1="247" x2="458" y2="247" stroke="#10b981" marker-end="url(#rarr-g)" />
+                                <text x="468" y="251" font-size="8" fill="#10b981">→ 安全回收 (delete)</text>
+
+                                <!-- Result -->
+                                <rect x="10" y="340" width="680" height="30" rx="4" fill="rgba(16,185,129,0.05)"
+                                    stroke="rgba(16,185,129,0.2)" />
+                                <text x="22" y="359" font-size="9" fill="#10b981">✓ 结果: FooC, FooD 被回收 · FooA 因仍在 HP[0]
+                                    和 HP[2] 中保护而保留 · 未回收上界 = O(|HP|)</text>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="col" style="flex:0.6">
+                    <div class="card" style="margin-bottom:12px">
+                        <div class="card-title"><span style="color:var(--purple)">■</span> 触发条件计算</div>
+                        <div style="font-family:var(--mono); font-size:0.75rem; line-height:2; color:var(--mid);">
+                            <div style="margin-bottom:8px">
+                                <span style="color:var(--dim)">活跃 HP 数量 H =</span>
+                                <input id="hp-count" type="range" min="1" max="100" value="10" oninput="calcTrigger()"
+                                    style="width:80px; margin:0 8px; accent-color:var(--accent)">
+                                <span id="hp-count-val" style="color:var(--accent)">10</span>
+                            </div>
+                            <div
+                                style="padding:10px; background:#060910; border-radius:6px; border:1px solid var(--border)">
+                                <div style="color:var(--dim); margin-bottom:4px">// 触发阈值：</div>
+                                <div>threshold = max(1000, 2 × <span id="hp-c" style="color:var(--cyan)">10</span>)
+                                </div>
+                                <div style="color:var(--green)">threshold = <span id="threshold-val">1000</span></div>
+                                <div style="margin-top:8px; color:var(--dim)">// 未回收上界（最坏情况）：</div>
+                                <div>bound ≈ threshold + <span id="hp-c2" style="color:var(--cyan)">10</span></div>
+                                <div style="color:var(--yellow)">bound ≈ <span id="bound-val">1010</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><span style="color:var(--cyan)">■</span> 回收时间保证</div>
+                        <div style="font-size:0.75rem; color:var(--mid); line-height:1.8">
+                            <div
+                                style="margin-bottom:8px; padding:8px; background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.2); border-radius:4px">
+                                <div style="color:var(--green); margin-bottom:2px">摊销期望：O(1)</div>
+                                <div style="font-size:0.7rem">每次回收的摊销代价为常数时间（批量扫描均摊）</div>
+                            </div>
+                            <div
+                                style="padding:8px; background:rgba(59,130,246,0.05); border:1px solid rgba(59,130,246,0.2); border-radius:4px; margin-bottom:8px">
+                                <div style="color:var(--accent); margin-bottom:2px">也支持定时回收</div>
+                                <div style="font-size:0.7rem">每 2 秒触发一次，防止对象长时间积压</div>
+                            </div>
+                            <div
+                                style="padding:8px; background:rgba(245,158,11,0.05); border:1px solid rgba(245,158,11,0.2); border-radius:4px">
+                                <div style="color:var(--yellow); margin-bottom:2px">无 GC 暂停</div>
+                                <div style="font-size:0.7rem">回收在后台进行，不影响读写关键路径</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: 方案对比 -->
+        <div class="tab-content" id="tab-compare">
+            <div class="card" style="margin-bottom:16px">
+                <div class="card-title"><span style="color:var(--accent)">■</span> 四种安全回收方案全面对比</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:18%">特性</th>
+                            <th style="width:18%; color:#94a3b8">读写锁<br><span
+                                    style="color:#475569;font-weight:400">shared_mutex</span></th>
+                            <th style="width:18%; color:#94a3b8">引用计数<br><span
+                                    style="color:#475569;font-weight:400">shared_ptr</span></th>
+                            <th style="width:18%; color:#94a3b8">RCU<br><span
+                                    style="color:#475569;font-weight:400">C++26 P2545</span></th>
+                            <th style="width:18%; color:#3b82f6">危险指针 ★<br><span
+                                    style="color:#1d4ed8;font-weight:400">C++26 P2530</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>读取速度</td>
+                            <td class="minus">慢 — 原子 CAS</td>
+                            <td class="minus">慢 —— refcnt</td>
+                            <td class="plus">极快 ++</td>
+                            <td class="plus">极快 ++</td>
+                        </tr>
+                        <tr>
+                            <td>可扩展性</td>
+                            <td class="minus">差 — 锁竞争</td>
+                            <td class="minus">差 —— 全局状态</td>
+                            <td class="plus">极佳 ++</td>
+                            <td class="plus">极佳 ++</td>
+                        </tr>
+                        <tr>
+                            <td>读者可阻塞</td>
+                            <td class="minus">不可以（写者饿死）</td>
+                            <td class="plus">可以 ++</td>
+                            <td class="minus">不可以（写者阻塞）</td>
+                            <td class="plus">可以 ++</td>
+                        </tr>
+                        <tr>
+                            <td>不定期保护<br><span style="font-size:0.65rem;color:#475569">迭代器/回调</span></td>
+                            <td class="plus">支持 ++</td>
+                            <td class="minus">需额外设计</td>
+                            <td class="plus">支持 ++</td>
+                            <td class="plus">支持 ++ <br><span style="font-size:0.65rem">hazard_pointer 移动语义</span></td>
+                        </tr>
+                        <tr>
+                            <td>复杂保护模式</td>
+                            <td class="plus">支持 ++</td>
+                            <td class="minus">困难</td>
+                            <td class="plus">支持 ++</td>
+                            <td class="neutral">需显式声明</td>
+                        </tr>
+                        <tr>
+                            <td>回收时机</td>
+                            <td class="plus">立即回收 ++</td>
+                            <td class="plus">立即回收 ++</td>
+                            <td class="minus">延迟（不确定）</td>
+                            <td class="neutral">延迟，O(H) 上界</td>
+                        </tr>
+                        <tr>
+                            <td>未回收上界</td>
+                            <td class="plus">0（立即）</td>
+                            <td class="plus">0（立即）</td>
+                            <td class="minus">无上界</td>
+                            <td class="plus">O(H) 有界</td>
+                        </tr>
+                        <tr>
+                            <td>写者阻塞</td>
+                            <td class="minus">被读者阻塞</td>
+                            <td class="plus">不阻塞</td>
+                            <td class="minus">等待宽限期</td>
+                            <td class="plus">不阻塞 ++</td>
+                        </tr>
+                        <tr>
+                            <td>实现复杂度</td>
+                            <td class="plus">简单</td>
+                            <td class="neutral">中等</td>
+                            <td class="neutral">复杂</td>
+                            <td class="neutral">中等（API 简洁）</td>
+                        </tr>
+                        <tr>
+                            <td>典型延迟<br><span style="font-size:0.65rem;color:#475569">读保护建立</span></td>
+                            <td class="minus">~20-50 ns</td>
+                            <td class="minus">~10-30 ns</td>
+                            <td class="plus">~1-2 ns</td>
+                            <td class="plus">~2-5 ns</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title"><span style="color:var(--green)">■</span> 适合使用危险指针的场景</div>
+                        <div class="svg-wrap">
+                            <svg width="100%" viewBox="0 0 380 200" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="10" y="10" width="360" height="40" rx="6" fill="rgba(16,185,129,0.06)"
+                                    stroke="rgba(16,185,129,0.25)" />
+                                <text x="22" y="27" font-size="10" fill="#10b981"
+                                    font-family="JetBrains Mono,monospace">✓ 高频读取 / 低频写入的共享数据</text>
+                                <text x="22" y="43" font-size="9" fill="#475569"
+                                    font-family="JetBrains Mono,monospace">如：配置对象、路由表、缓存条目</text>
+
+                                <rect x="10" y="60" width="360" height="40" rx="6" fill="rgba(16,185,129,0.06)"
+                                    stroke="rgba(16,185,129,0.25)" />
+                                <text x="22" y="77" font-size="10" fill="#10b981"
+                                    font-family="JetBrains Mono,monospace">✓ 读操作需要长时间持有指针</text>
+                                <text x="22" y="93" font-size="9" fill="#475569"
+                                    font-family="JetBrains Mono,monospace">如：迭代器、用户回调、跨函数引用</text>
+
+                                <rect x="10" y="110" width="360" height="40" rx="6" fill="rgba(16,185,129,0.06)"
+                                    stroke="rgba(16,185,129,0.25)" />
+                                <text x="22" y="127" font-size="10" fill="#10b981"
+                                    font-family="JetBrains Mono,monospace">✓ 需要极低延迟和高扩展性</text>
+                                <text x="22" y="143" font-size="9" fill="#475569"
+                                    font-family="JetBrains Mono,monospace">如：高性能无锁数据结构、网络包处理</text>
+
+                                <rect x="10" y="160" width="360" height="30" rx="6" fill="rgba(16,185,129,0.06)"
+                                    stroke="rgba(16,185,129,0.25)" />
+                                <text x="22" y="179" font-size="10" fill="#10b981"
+                                    font-family="JetBrains Mono,monospace">✓ 不可接受读者阻塞写者的场景</text>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title"><span style="color:var(--red)">■</span> 不适合使用危险指针的场景</div>
+                        <div class="svg-wrap">
+                            <svg width="100%" viewBox="0 0 380 200" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="10" y="10" width="360" height="40" rx="6" fill="rgba(239,68,68,0.06)"
+                                    stroke="rgba(239,68,68,0.25)" />
+                                <text x="22" y="27" font-size="10" fill="#ef4444"
+                                    font-family="JetBrains Mono,monospace">✗ 要求立即释放内存</text>
+                                <text x="22" y="43" font-size="9" fill="#475569"
+                                    font-family="JetBrains Mono,monospace">→ 改用 lock + delete 或 shared_ptr</text>
+
+                                <rect x="10" y="60" width="360" height="40" rx="6" fill="rgba(239,68,68,0.06)"
+                                    stroke="rgba(239,68,68,0.25)" />
+                                <text x="22" y="77" font-size="10" fill="#ef4444"
+                                    font-family="JetBrains Mono,monospace">✗ 需要保护整个临界区（多对象）</text>
+                                <text x="22" y="93" font-size="9" fill="#475569"
+                                    font-family="JetBrains Mono,monospace">→ 改用 RCU 或 shared_mutex</text>
+
+                                <rect x="10" y="110" width="360" height="40" rx="6" fill="rgba(239,68,68,0.06)"
+                                    stroke="rgba(239,68,68,0.25)" />
+                                <text x="22" y="127" font-size="10" fill="#ef4444"
+                                    font-family="JetBrains Mono,monospace">✗ 不规则的保护模式（动态集合）</text>
+                                <text x="22" y="143" font-size="9" fill="#475569"
+                                    font-family="JetBrains Mono,monospace">→ 改用 RCU 或加锁</text>
+
+                                <rect x="10" y="160" width="360" height="30" rx="6" fill="rgba(239,68,68,0.06)"
+                                    stroke="rgba(239,68,68,0.25)" />
+                                <text x="22" y="179" font-size="10" fill="#ef4444"
+                                    font-family="JetBrains Mono,monospace">✗ 每次读取保护大量不同对象</text>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== TAB SWITCHING =====
+        function switchTab(name) {
+            document.querySelectorAll('.tab').forEach((t, i) => {
+                const names = ['viz', 'code', 'reclaim', 'compare'];
+                t.classList.toggle('active', names[i] === name);
+            });
+            document.querySelectorAll('.tab-content').forEach(c => {
+                c.classList.toggle('active', c.id === 'tab-' + name);
+            });
+        }
+
+        // ===== LOG =====
+        function log(msg, cls = '') {
+            const box = document.getElementById('log-box');
+            const d = document.createElement('div');
+            d.className = 'log-line ' + cls;
+            d.textContent = msg;
+            box.appendChild(d);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // ===== SVG HELPERS =====
+        function svgSet(id, attr, val) {
+            const el = document.getElementById(id);
+            if (el) el.setAttribute(attr, val);
+        }
+        function svgText(id, val) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        }
+        function svgFill(id, color) {
+            const el = document.getElementById(id);
+            if (el) {
+                // For text elements
+                el.setAttribute('fill', color);
+            }
+        }
+        function highlightInvariant(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.background = 'rgba(59,130,246,0.15)';
+            el.style.borderColor = 'rgba(59,130,246,0.4)';
+            el.querySelector('span').textContent = '●';
+            el.querySelector('span').style.color = 'var(--accent)';
+        }
+
+        let vizStep = 0;
+
+        function resetViz() {
+            vizStep = 0;
+            // Reset SVG
+            svgText('src-val', '→ 0xA000 (FooA)');
+            svgSet('src-val', 'fill', '#3b82f6');
+            svgText('ha-val', '[ empty ]');
+            svgSet('ha-val', 'fill', '#475569');
+            svgText('ta-state', '状态：初始化');
+            svgText('ta-ptr', 'ptr = null');
+            svgText('tb-state', '状态：就绪');
+            svgText('tb-old', 'oldptr = null');
+            svgText('hp0-val', 'null');
+            svgSet('hp0-val', 'fill', '#475569');
+            svgSet('hp0-box', 'stroke', '#1f2d45');
+            svgText('hp1-val', 'null');
+            svgSet('hp1-val', 'fill', '#475569');
+            svgText('hb-val', '→ 0xA000 (FooA)');
+            svgSet('hb-val', 'fill', '#3b82f6');
+            svgText('retired-val', '[ 空 ]');
+            svgSet('retired-val', 'fill', '#475569');
+
+            // Arrows
+            svgSet('arr-src-a', 'opacity', '1');
+            svgSet('arr-src-a', 'stroke', '#3b82f6');
+            svgSet('arr-ha-hp', 'opacity', '0');
+            svgSet('arr-hp0-obj', 'opacity', '0');
+            svgSet('arr-src-b', 'opacity', '0');
+            svgSet('reclaim-x1', 'opacity', '0');
+            svgSet('reclaim-x2', 'opacity', '0');
+            svgSet('block-marker', 'opacity', '0');
+            svgSet('safe-marker', 'opacity', '0');
+
+            // Object A
+            svgSet('obj-a', 'opacity', '1');
+            svgSet('obj-a-box', 'stroke', '#3b82f6');
+            svgText('obj-a-status', '● 活跃 (Active)');
+            svgSet('obj-a-status', 'fill', '#10b981');
+            svgSet('obj-b', 'opacity', '0.2');
+
+            // Buttons
+            document.getElementById('btn-protect').disabled = false;
+            document.getElementById('btn-update').disabled = true;
+            document.getElementById('btn-reclaim').disabled = true;
+            document.getElementById('btn-release').disabled = true;
+            document.getElementById('btn-reclaim2').disabled = true;
+
+            // Badge
+            document.getElementById('viz-badge').className = 'badge badge-blue';
+            document.getElementById('viz-badge').textContent = '就绪';
+
+            // Invariants reset
+            ['inv1', 'inv2', 'inv3', 'inv4'].forEach(id => {
+                const el = document.getElementById(id);
+                el.style.background = 'rgba(71,85,105,0.15)';
+                el.style.borderColor = 'var(--border)';
+                el.querySelector('span').textContent = '○';
+                el.querySelector('span').style.color = 'var(--dim)';
+            });
+
+            document.getElementById('step-info').innerHTML =
+                '<strong>初始状态：</strong> 共享指针 src_ 指向堆上的 FooA 对象。两个线程均未开始操作。点击下方按钮逐步演示。';
+
+            const box = document.getElementById('log-box');
+            box.innerHTML = '<div class="log-line sys">// 重置完成，可重新演示</div>';
+        }
+
+        // STEP 1: Thread A calls protect()
+        function stepProtect() {
+            vizStep = 1;
+            document.getElementById('btn-protect').disabled = true;
+            document.getElementById('btn-update').disabled = false;
+
+            log('[Thread A] hazard_pointer h = make_hazard_pointer()', 'info');
+            log('[Thread A] Foo* ptr = h.protect(src_)', 'info');
+            log('  → 读取 src_ = 0xA000', 'ok');
+            log('  → 写入 HP[0] = 0xA000  (内存屏障)', 'ok');
+            log('  → 验证: src_.load() == 0xA000 ✓', 'ok');
+
+            // Update SVG
+            svgText('ha-val', 'HP[0] = 0xA000');
+            svgSet('ha-val', 'fill', '#10b981');
+            svgText('ta-state', '状态：保护中');
+            svgSet('ta-state', 'fill', '#10b981');
+            svgText('ta-ptr', 'ptr = 0xA000 (FooA)');
+            svgSet('ta-ptr', 'fill', '#10b981');
+
+            // HP[0] update
+            svgText('hp0-val', '0xA000');
+            svgSet('hp0-val', 'fill', '#10b981');
+            svgSet('hp0-box', 'stroke', '#10b981');
+
+            // Arrow from HA to HP
+            svgSet('arr-ha-hp', 'opacity', '1');
+            // Arrow HP0 to ObjA
+            svgSet('arr-hp0-obj', 'opacity', '1');
+
+            // Obj-a glow
+            svgSet('obj-a-box', 'stroke', '#10b981');
+            svgSet('obj-a-box', 'filter', 'url(#glow-green)');
+
+            document.getElementById('viz-badge').className = 'badge badge-green';
+            document.getElementById('viz-badge').textContent = '保护中';
+
+            document.getElementById('step-info').innerHTML =
+                '<strong>① protect(src_) 完成：</strong> Thread A 的 HP[0] 槽已写入 0xA000。FooA 现在受到保护。即使 Writer 并发调用 update()，也不能回收 FooA。这是危险指针协议的关键：先发布 → 再验证。';
+
+            highlightInvariant('inv1');
+            highlightInvariant('inv3');
+        }
+
+        // STEP 2: Thread B calls update()
+        function stepUpdate() {
+            vizStep = 2;
+            document.getElementById('btn-update').disabled = true;
+            document.getElementById('btn-reclaim').disabled = false;
+
+            log('[Thread B] update(new Foo(99, "FooB"))', 'warn');
+            log('  → src_.exchange(0xB000) 返回 oldptr = 0xA000', 'warn');
+            log('  → src_ 现在指向 FooB (0xB000)', 'warn');
+            log('  → oldptr->retire() : FooA 加入退休列表', 'warn');
+
+            // FooB appears
+            svgSet('obj-b', 'opacity', '1');
+            svgText('obj-b-status', '● 活跃 (Active)');
+            svgSet('obj-b-status', 'fill', '#10b981');
+
+            // src_ now points to FooB
+            svgText('src-val', '→ 0xB000 (FooB)');
+            svgSet('src-val', 'fill', '#8b5cf6');
+            svgText('hb-val', '→ 0xB000 (FooB)');
+            svgSet('hb-val', 'fill', '#8b5cf6');
+
+            // src_ arrow now points to FooB
+            svgSet('arr-src-a', 'opacity', '0');
+            svgSet('arr-src-b', 'opacity', '1');
+
+            // Writer state
+            svgText('tb-state', '状态：已更新');
+            svgSet('tb-state', 'fill', '#8b5cf6');
+            svgText('tb-old', 'oldptr = 0xA000 (retired)');
+            svgSet('tb-old', 'fill', '#f59e0b');
+
+            // FooA status -> retired
+            svgText('obj-a-status', '● 已退休 (Retired)');
+            svgSet('obj-a-status', 'fill', '#f59e0b');
+            svgSet('obj-a-box', 'stroke', '#f59e0b');
+
+            // Retired list
+            svgText('retired-val', '[ 0xA000 (FooA) ]');
+            svgSet('retired-val', 'fill', '#f59e0b');
+
+            document.getElementById('viz-badge').className = 'badge badge-yellow';
+            document.getElementById('viz-badge').textContent = '已退休';
+
+            document.getElementById('step-info').innerHTML =
+                '<strong>② update() 完成：</strong> src_ 现在指向 FooB。FooA 已被 retire()，进入退休列表。注意：Thread A 的 HP[0] 仍然保护着 0xA000！系统此时应检查是否可以回收 FooA。';
+
+            highlightInvariant('inv2');
+        }
+
+        // STEP 3: Try to reclaim - BLOCKED
+        function stepReclaim() {
+            vizStep = 3;
+            document.getElementById('btn-reclaim').disabled = true;
+            document.getElementById('btn-release').disabled = false;
+
+            log('[Reclaimer] 触发异步回收检查...', 'sys');
+            log('  → 扫描全部 HP 槽...', 'sys');
+            log('  → HP[0] = 0xA000  ← Thread A 仍在保护！', 'warn');
+            log('  → 0xA000 ∈ HP_set → 不可回收！放回退休列表', 'warn');
+            log('  → FooA 安全，跳过回收', 'warn');
+
+            // Block marker
+            svgSet('block-marker', 'opacity', '1');
+
+            document.getElementById('viz-badge').className = 'badge badge-yellow';
+            document.getElementById('viz-badge').textContent = '受保护';
+
+            document.getElementById('step-info').innerHTML =
+                '<strong>③ 尝试回收被阻止：</strong> 回收器扫描 HP 列表，发现 HP[0] = 0xA000，与退休的 FooA 地址匹配。因此 FooA <strong style="color:var(--yellow)">不能被回收</strong>，放回退休列表等待下次检查。这正是危险指针保护的核心语义！';
+        }
+
+        // STEP 4: Release protection
+        function stepRelease() {
+            vizStep = 4;
+            document.getElementById('btn-release').disabled = true;
+            document.getElementById('btn-reclaim2').disabled = false;
+
+            log('[Thread A] 函数返回，h 析构', 'info');
+            log('  → ~hazard_pointer(): 清除 HP[0] = null', 'info');
+            log('  → FooA 不再受任何危险指针保护', 'ok');
+
+            // Clear HP[0]
+            svgText('hp0-val', 'null');
+            svgSet('hp0-val', 'fill', '#475569');
+            svgSet('hp0-box', 'stroke', '#1f2d45');
+
+            // Arrow from HP0 gone
+            svgSet('arr-hp0-obj', 'opacity', '0');
+            svgSet('arr-ha-hp', 'opacity', '0');
+
+            // Block marker gone
+            svgSet('block-marker', 'opacity', '0');
+
+            // Thread A state
+            svgText('ha-val', '[ empty ]');
+            svgSet('ha-val', 'fill', '#475569');
+            svgText('ta-state', '状态：已释放');
+            svgSet('ta-state', 'fill', '#475569');
+            svgText('ta-ptr', 'ptr = (dangling - 不要用!)');
+            svgSet('ta-ptr', 'fill', '#ef4444');
+
+            document.getElementById('viz-badge').className = 'badge badge-gray';
+            document.getElementById('viz-badge').textContent = '未保护';
+
+            document.getElementById('step-info').innerHTML =
+                '<strong>④ 保护释放：</strong> hazard_pointer h 析构，HP[0] 清零。FooA 现在没有任何危险指针保护它。Thread A 的本地变量 ptr 成为悬空指针（此时不应再使用！）。可以安全回收 FooA 了。';
+        }
+
+        // STEP 5: Reclaim success
+        function stepReclaim2() {
+            vizStep = 5;
+            document.getElementById('btn-reclaim2').disabled = true;
+
+            log('[Reclaimer] 再次触发回收检查...', 'sys');
+            log('  → 扫描全部 HP 槽...', 'sys');
+            log('  → HP[0] = null, HP[1] = null', 'sys');
+            log('  → 0xA000 ∉ HP_set → 可以安全回收！', 'ok');
+            log('  → delete 0xA000 (FooA) ✓', 'ok');
+            log('  → 退休列表清空', 'ok');
+
+            // Reclaim X
+            svgSet('reclaim-x1', 'opacity', '1');
+            svgSet('reclaim-x2', 'opacity', '1');
+            svgSet('safe-marker', 'opacity', '1');
+
+            // FooA status -> reclaimed
+            svgText('obj-a-status', '× 已回收 (Deleted)');
+            svgSet('obj-a-status', 'fill', '#ef4444');
+            svgSet('obj-a-box', 'stroke', '#ef4444');
+            svgSet('obj-a', 'opacity', '0.35');
+
+            // Retired list clear
+            svgText('retired-val', '[ 空 ]');
+            svgSet('retired-val', 'fill', '#10b981');
+
+            document.getElementById('viz-badge').className = 'badge badge-green';
+            document.getElementById('viz-badge').textContent = '已回收';
+
+            document.getElementById('step-info').innerHTML =
+                '<strong>⑤ 安全回收成功！</strong> 回收器再次扫描 HP 列表，所有槽均为 null，FooA 的地址不在任何 HP 中，<strong style="color:var(--green)">安全执行 delete</strong>。退休列表清空。整个生命周期：Active → Retired → Reclaimed，读写全程无锁，无阻塞！';
+
+            highlightInvariant('inv4');
+            log('// === 完整演示结束，点击"重置"重新演示 ===', 'sys');
+        }
+
+        // ===== RECLAIM CALCULATOR =====
+        function calcTrigger() {
+            const h = parseInt(document.getElementById('hp-count').value);
+            document.getElementById('hp-count-val').textContent = h;
+            document.getElementById('hp-c').textContent = h;
+            document.getElementById('hp-c2').textContent = h;
+            const threshold = Math.max(1000, 2 * h);
+            const bound = threshold + h;
+            document.getElementById('threshold-val').textContent = threshold;
+            document.getElementById('bound-val').textContent = bound;
+        }
+    </script>
+</body>
+
+</html>
